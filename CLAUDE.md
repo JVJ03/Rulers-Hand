@@ -60,16 +60,28 @@ the Dell was index 1, then index 0 after a reconnect.
 The laptop's `Integrated Camera` is effectively blind while docked (measured
 mean brightness 2.4/255, lid closed). It only exists as a fallback.
 
-Measured end-to-end, 1280x720, MJPG, `CAP_PROP_FPS=30`:
+Running at the sensor's native ceiling, **2560x1440** — anything higher falls
+back to it. Measured resolution ladder on the Dell, MJPG, `CAP_PROP_FPS=30`:
 
-| | Dell 4MP | Integrated |
-| --- | --- | --- |
-| capture | 7.4 ms | 63.0 ms |
-| inference | 27.1 ms | 26.4 ms |
-| **end-to-end** | **29.0 fps** | **11.2 fps** |
+| Mode | capture | inference | end-to-end |
+| --- | --- | --- | --- |
+| 640x480 | 19.9 ms | 14.1 ms | 29.4 fps |
+| 1280x720 | 8.6 ms | 26.9 ms | 28.2 fps |
+| 1920x1080 | 4.2 ms | 32.7 ms | 27.1 fps |
+| **2560x1440** | 6.2 ms | 50.9 ms | **17.5 fps** |
 
-At 29 fps a 400 ms hold gets ~12 frames to confirm — plenty. **Threaded capture
+Cost is entirely in inference, not capture. If gestures ever feel laggy, drop
+`FRAME_WIDTH/HEIGHT` to 1920x1080 for ~10 fps back at little practical loss —
+MediaPipe downscales internally anyway, so extra pixels mainly help detect
+hands that are small in frame (i.e. further from the camera).
+
+At 17.5 fps a 400 ms hold still gets ~7 frames to confirm. **Threaded capture
 is not needed**; don't add that complexity unless the feel demands it.
+
+`PREVIEW_SCALE` shrinks the preview window only — inference always runs on the
+full-resolution frame.
+
+For comparison, the integrated camera manages 11.2 fps at 720p (63 ms capture).
 
 ### If the Dell camera vanishes
 

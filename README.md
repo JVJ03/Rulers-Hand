@@ -77,8 +77,12 @@ attached, or if the watcher can't find your camera:
 That lists every device by name and reports which ones actually deliver frames.
 Pass `--camera N` to the watcher to override the name lookup for one run.
 
-Measured on the Dell 4MP webcam at 1280x720: **29 fps end-to-end** (7 ms
-capture, 27 ms inference).
+Runs at the Dell webcam's native maximum, **2560x1440** — measured **17.5 fps
+end-to-end** (6 ms capture, 51 ms inference). The preview window is scaled down
+for display via `PREVIEW_SCALE`; inference always uses the full frame.
+
+If that ever feels laggy, drop `FRAME_WIDTH`/`FRAME_HEIGHT` to 1920x1080 in
+`config.py` and you get roughly 10 fps back.
 
 **2. Load the extension.**
 

@@ -122,6 +122,14 @@ def main(argv: list[str] | None = None) -> int:
                 if span > 0:
                     fps = (len(frame_times) - 1) / span
 
+            # Shrink for display only — everything above ran at full resolution.
+            if config.PREVIEW_SCALE != 1.0:
+                frame = cv2.resize(
+                    frame, None,
+                    fx=config.PREVIEW_SCALE, fy=config.PREVIEW_SCALE,
+                    interpolation=cv2.INTER_AREA,
+                )
+
             draw_hud(frame, fps, len(hands), overlay_on)
             cv2.imshow("Claudelash - gesture watcher", frame)
 

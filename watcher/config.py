@@ -11,10 +11,17 @@ main loop to change the feel of the thing.
 CAMERA_NAME = "DELL Display 4MP Webcam"
 CAMERA_INDEX = None  # set to an int to ignore CAMERA_NAME and pin an index
 
-FRAME_WIDTH = 1280
-FRAME_HEIGHT = 720
+# 2560x1440 is the Dell 4MP sensor's native ceiling — asking for more falls back
+# to this. Costs frame rate: 19.5 fps here vs 27 at 1080p, 28 at 720p (measured).
+# Still ~8 frames per 400ms hold, so gestures stay responsive.
+FRAME_WIDTH = 2560
+FRAME_HEIGHT = 1440
 TARGET_FPS = 30  # must be set explicitly or the driver may pick its slowest mode
 MIRROR_PREVIEW = True  # flip horizontally so it behaves like a mirror
+
+# The preview window only — inference still runs on the full-resolution frame.
+# A 2560x1440 window doesn't fit on screen next to everything else.
+PREVIEW_SCALE = 0.5
 
 # --- MediaPipe Hands --------------------------------------------------------
 MAX_HANDS = 2  # 2 from the start so TWO_HAND_SLAM works later without a rewrite
