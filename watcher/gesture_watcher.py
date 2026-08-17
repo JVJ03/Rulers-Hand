@@ -137,12 +137,35 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Ready at {capture_size[0]}x{capture_size[1]}. {KEY_HINTS}", flush=True)
 
+    # The Dell module has a habit of streaming perfectly-black frames at higher
+    # resolutions while reporting itself healthy — a bandwidth-starved link
+    # rather than a covered lens. Say so plainly instead of leaving a dark
+    # window and no explanation.
+    black_streak = 0
+    warned_black = False
+
     with create_landmarker() as landmarker:
         while True:
             ok, frame = cap.read()
             if not ok:
                 print("Dropped frame from camera, retrying...", file=sys.stderr)
                 continue
+
+            if not warned_black:
+                black_streak = black_streak + 1 if frame.max() == 0 else 0
+                if black_streak >= 30:
+                    warned_black = True
+                    print(
+                        f"\n  WARNING: 30 consecutive all-black frames at "
+                        f"{capture_size[0]}x{capture_size[1]}.\n"
+                        f"  The camera is streaming but no light is getting "
+                        f"through. On the Dell module this\n"
+                        f"  usually means the link can't sustain this "
+                        f"resolution — try a lower one:\n"
+                        f"    FRAME_WIDTH = 640 / FRAME_HEIGHT = 480 in "
+                        f"watcher/config.py\n",
+                        flush=True,
+                    )
 
             if config.MIRROR_PREVIEW:
                 frame = cv2.flip(frame, 1)
