@@ -109,8 +109,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    print(f"mediapipe {mp.__version__} | opencv {cv2.__version__}")
-    print("Opening camera... (first frame can take a second)")
+    # flush=True throughout: when stdout is piped (a log file, a background
+    # task) Python fully buffers it, and a watcher that prints nothing for
+    # minutes looks hung rather than idle.
+    print(f"mediapipe {mp.__version__} | opencv {cv2.__version__}", flush=True)
+    print("Opening camera... (first frame can take a second)", flush=True)
 
     cap = camera.open_camera(args.camera)
     capture_size = (
@@ -132,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     last_fired_name: str | None = None
     fire_count = 0
 
-    print(f"Ready at {capture_size[0]}x{capture_size[1]}. {KEY_HINTS}")
+    print(f"Ready at {capture_size[0]}x{capture_size[1]}. {KEY_HINTS}", flush=True)
 
     with create_landmarker() as landmarker:
         while True:

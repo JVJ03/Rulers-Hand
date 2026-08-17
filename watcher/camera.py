@@ -63,7 +63,7 @@ def open_camera(index: int | None = None) -> cv2.VideoCapture:
     """
     if index is None:
         index, explanation = resolve_index()
-        print(f"Camera: {explanation}")
+        print(f"Camera: {explanation}", flush=True)
 
     cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
     if not cap.isOpened():
