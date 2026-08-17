@@ -122,6 +122,8 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     frame_times: deque[float] = deque(maxlen=30)
+    read_times: deque[float] = deque(maxlen=30)
+    infer_times: deque[float] = deque(maxlen=30)
     show_landmarks = True
     show_panels = True
     start = time.perf_counter()
@@ -142,19 +144,29 @@ def main(argv: list[str] | None = None) -> int:
     # rather than a covered lens. Say so plainly instead of leaving a dark
     # window and no explanation.
     black_streak = 0
-    warned_black = False
+    black_check_done = False
 
     with create_landmarker() as landmarker:
         while True:
+            t_read = time.perf_counter()
             ok, frame = cap.read()
+            t_read_done = time.perf_counter()
             if not ok:
                 print("Dropped frame from camera, retrying...", file=sys.stderr)
                 continue
 
-            if not warned_black:
-                black_streak = black_streak + 1 if frame.max() == 0 else 0
+            # Only until the question is settled. `frame.max()` scans every
+            # pixel — 6 million of them at 1080p — so leaving it in the hot
+            # loop costs real frame rate. One frame with light in it proves the
+            # camera works, and the check switches off for good.
+            if not black_check_done:
+                if frame.max() > 0:
+                    black_check_done = True
+                    black_streak = 0
+                else:
+                    black_streak += 1
                 if black_streak >= 30:
-                    warned_black = True
+                    black_check_done = True
                     print(
                         f"\n  WARNING: 30 consecutive all-black frames at "
                         f"{capture_size[0]}x{capture_size[1]}.\n"
@@ -170,11 +182,28 @@ def main(argv: list[str] | None = None) -> int:
             if config.MIRROR_PREVIEW:
                 frame = cv2.flip(frame, 1)
 
-            # Inference runs on the full-resolution frame.
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Inference runs on a downscaled copy; the preview keeps the full
+            # frame. Landmarks come back normalised, so they overlay correctly
+            # on the big image regardless of what the model was fed.
+            infer_frame = frame
+            if config.INFERENCE_WIDTH and frame.shape[1] > config.INFERENCE_WIDTH:
+                scaled_h = int(frame.shape[0] * config.INFERENCE_WIDTH / frame.shape[1])
+                infer_frame = cv2.resize(
+                    frame, (config.INFERENCE_WIDTH, scaled_h),
+                    interpolation=cv2.INTER_AREA,
+                )
+            rgb = cv2.cvtColor(infer_frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
             timestamp_ms = int((time.perf_counter() - start) * 1000)
+            t_infer = time.perf_counter()
             result = landmarker.detect_for_video(mp_image, timestamp_ms)
+            t_infer_done = time.perf_counter()
+
+            # Rolling averages, so the HUD says where the time actually goes.
+            # Capture climbing while inference stays flat means the camera link
+            # is the problem, not the code.
+            read_times.append(t_read_done - t_read)
+            infer_times.append(t_infer_done - t_infer)
 
             hands = result.hand_landmarks or []
             hand_features = hand_features_from(result)
@@ -218,7 +247,12 @@ def main(argv: list[str] | None = None) -> int:
                 )
 
             overlay.draw_last_fired(view, last_fired_name, now - last_fire_at, fire_count)
-            overlay.draw_top_bar(view, fps, capture_size, len(hands), dispatcher.status)
+            timing = ""
+            if read_times:
+                timing = (f"cap {1000 * sum(read_times) / len(read_times):.0f}ms  "
+                          f"inf {1000 * sum(infer_times) / len(infer_times):.0f}ms")
+            overlay.draw_top_bar(view, fps, capture_size, len(hands),
+                                 dispatcher.status, timing)
             overlay.draw_footer(view, KEY_HINTS)
             cv2.imshow("Claudelash - gesture watcher", view)
 

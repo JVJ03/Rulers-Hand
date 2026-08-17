@@ -108,6 +108,11 @@ def main() -> int:
                 continue
             if args.mirror:
                 frame = cv2.flip(frame, 1)
+            # Same downscale the live watcher uses, so results transfer.
+            if config.INFERENCE_WIDTH and frame.shape[1] > config.INFERENCE_WIDTH:
+                sh = int(frame.shape[0] * config.INFERENCE_WIDTH / frame.shape[1])
+                frame = cv2.resize(frame, (config.INFERENCE_WIDTH, sh),
+                                   interpolation=cv2.INTER_AREA)
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
             result = landmarker.detect_for_video(image, int(index / fps * 1000))

@@ -32,7 +32,19 @@ MIRROR_PREVIEW = True  # flip horizontally so it behaves like a mirror
 PREVIEW_SCALE = 0.5
 
 # --- MediaPipe Hands --------------------------------------------------------
-MAX_HANDS = 2  # 2 from the start so TWO_HAND_SLAM works later without a rewrite
+# The landmark model runs once per detected hand, so this directly multiplies
+# inference cost. Measured on real footage: 42.4ms at 2 hands vs 27.4ms at 1 —
+# a 35% saving for a capability nothing uses until TWO_HAND_SLAM in milestone 7.
+# Set it back to 2 then; the code paths already handle multiple hands.
+MAX_HANDS = 1
+
+# Inference runs on a downscaled copy while the preview keeps full resolution.
+# This is free: MediaPipe resizes to a 192px input internally regardless, and
+# returns *normalised* landmarks, so the coordinates are unchanged. Measured
+# across 1920/1280/960/640 widths, detection rate and every derived feature
+# came out identical, while frame preparation dropped from 9.0ms to 4.5ms.
+# Set to None to feed the full frame.
+INFERENCE_WIDTH = 640
 # Detection confidence was swept against the reference clip, which contains
 # three repetitions — two slow, one fast:
 #

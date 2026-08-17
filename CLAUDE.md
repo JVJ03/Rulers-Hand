@@ -84,6 +84,33 @@ buys detail the model discards before it looks at the frame. Extra resolution
 only helps when the hand is genuinely small in frame — i.e. sitting further
 back — so re-run `watcher/tune_resolution.py` if the desk setup changes.
 
+### Cost with a hand actually in frame
+
+The numbers above are with an empty frame, which flatters them badly — the
+landmark model only runs once a hand is *found*, and again for each extra
+hand. Measured over 150 frames of real footage:
+
+| MAX_HANDS | infer at | prep | inference | total | fps |
+| --- | --- | --- | --- | --- | --- |
+| 2 | full | 8.7 ms | 42.4 ms | 51.1 ms | 19.6 |
+| 1 | full | 9.0 ms | 27.4 ms | 36.4 ms | 27.5 |
+| **1** | **640w** | 4.5 ms | 30.1 ms | **34.6 ms** | **28.9** |
+
+Two levers, both applied:
+
+- **`MAX_HANDS = 1`** — the single biggest win, 35% off inference. Set it back
+  to 2 for `TWO_HAND_SLAM` in milestone 7 and accept the cost then.
+- **`INFERENCE_WIDTH = 640`** — inference runs on a downscaled copy while the
+  preview keeps full resolution. Free, because MediaPipe resizes to a 192px
+  input internally anyway and returns *normalised* landmarks. Detection rate
+  and every derived feature measured identical at 1920/1280/960/640.
+
+Don't "optimise" by resizing to 1280 — that measured *slower* than passing the
+full frame, because the resize costs more than it saves.
+
+Verified quality-neutral: the v2 reference clip fires 6 times at identical
+timestamps before and after.
+
 At ~25 fps a 400 ms hold gets ~10 frames to confirm. **Threaded capture is not
 needed**; don't add that complexity unless the feel demands it.
 

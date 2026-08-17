@@ -53,6 +53,7 @@ def draw_top_bar(
     capture_size: tuple[int, int],
     hand_count: int,
     link_status: str = "",
+    timing: str = "",
 ) -> None:
     w = frame.shape[1]
     _panel(frame, 0, 0, w, 34)
@@ -61,6 +62,11 @@ def draw_top_bar(
     _text(frame, f"{fps:5.1f} fps", 130, 22)
     _text(frame, f"{cw}x{ch}", 215, 22, color=(170, 170, 178))
     _text(frame, f"hands {hand_count}", 320, 22, color=(170, 170, 178))
+    if timing:
+        # Second row, so the split between capture and inference is visible at
+        # a glance — that's what says whether a slowdown is the camera or us.
+        _panel(frame, 0, 34, 250, 24)
+        _text(frame, timing, 12, 51, scale=0.44, color=(190, 190, 198))
     if link_status:
         # Labelled "VS Code" on purpose. This is only about *delivery* to the
         # extension — recognition is reported separately, in the last-fired
