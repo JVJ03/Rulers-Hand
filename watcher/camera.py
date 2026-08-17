@@ -69,9 +69,19 @@ def open_camera(index: int | None = None) -> cv2.VideoCapture:
     if not cap.isOpened():
         raise SystemExit(
             f"Could not open camera index {index}.\n"
-            f"Most likely something else is holding it. Close the Windows\n"
-            f"Settings > Bluetooth & devices > Cameras page, Teams, or any\n"
-            f"browser tab with camera access, then try again."
+            f"\n"
+            f"If another app holds it: quit Teams (it reserves the monitor\n"
+            f"webcam even outside a call), close the Windows Settings >\n"
+            f"Cameras page, and check for browser tabs with camera access.\n"
+            f"\n"
+            f"If nothing holds it and the device still won't open, the Dell\n"
+            f"module itself is the problem — seen once with the device\n"
+            f"reporting Present: True, Status: OK, Problem: 0, and all three\n"
+            f"OpenCV backends refusing it. Push the pop-up module down and\n"
+            f"back up to power-cycle it. Software cannot fix that state.\n"
+            f"\n"
+            f"To carry on meanwhile: --camera N picks another camera, and\n"
+            f"watcher/list_cameras.py shows what's available."
         )
 
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))

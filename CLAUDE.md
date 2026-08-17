@@ -92,6 +92,24 @@ full-resolution frame.
 
 For comparison, the integrated camera manages 11.2 fps at 720p (63 ms capture).
 
+### If the Dell camera enumerates but won't open
+
+Distinct from the failure below, and it looks healthy in every Windows view:
+`Present: True`, `Status: OK`, `Problem: 0`, listed by DirectShow — yet
+`cv2.VideoCapture` refuses it on **all three** backends (DSHOW, MSMF, ANY)
+while the integrated camera opens fine on all three. The consent store reports
+no app using a camera, and it persists with Teams closed and no Python running.
+
+First suspect is still an app holding it — **Teams reserves this camera on a
+conferencing monitor even outside a call**, and the new Teams client runs on
+WebView2, so orphaned `msedgewebview2` processes can outlive it. Point Teams at
+the `Integrated Camera` in its device settings to avoid the fight entirely.
+
+When nothing holds it, the module itself is in a bad state. Power-cycle it by
+pushing the pop-up down and back up. Software has no reach here — checked and
+ruled out: all capture backends, driver problem codes, the consent store,
+stray processes, and the biometric service.
+
 ### If the Dell camera vanishes
 
 It presents as `PID_D003`, a *separate* USB device from the monitor's
