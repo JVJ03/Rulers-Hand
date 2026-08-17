@@ -56,9 +56,10 @@ COOLDOWN_MS = 1200  # ignore repeat fires of the same gesture within this window
 
 # --- Gesture shapes and sequences -------------------------------------------
 # How far apart the fingertips must be to count as an open palm, in units of
-# hand size. From the reference clip: open palm measured 0.32-0.36, fist
-# 0.09-0.14, so 0.22 sits comfortably between them.
-OPEN_PALM_MIN_SPREAD = 0.22
+# hand size, measured on world landmarks. From the reference clip: the open
+# palm sat at 0.37-0.43, the fist at 0.19-0.20, so 0.28 splits them with room
+# on both sides.
+OPEN_PALM_MIN_SPREAD = 0.28
 
 # How long a whole sequence may take, from its first shape to its last.
 # The reference clip ran 0.72-1.48s of open palm, then ~0.24s to close, so
@@ -74,14 +75,43 @@ GESTURE_HAND = "Right"
 
 # --- Finger extension -------------------------------------------------------
 # How straight a finger must be, in degrees at its middle joint, to count as
-# extended. 180 is dead straight. Lower these if fingers you're holding out
-# read as curled; raise them if lazily-bent fingers read as extended.
+# extended. Measured on MediaPipe's *world* landmarks, where a fully straight
+# finger reads about 170 rather than a clean 180.
 #
-# The thumb gets its own, lower, threshold — it never straightens as fully as
-# the fingers, and using one number for all five is what made a relaxed thumb
-# read as permanently extended.
-FINGER_STRAIGHT_DEG = 155.0
-THUMB_STRAIGHT_DEG = 140.0
+# These are lower than they'd be in 2D on purpose. Measuring in image space
+# gave errors of up to 84 degrees depending only on which way the hand faced,
+# which is what made a single raised finger read as two when the back of the
+# hand was toward the camera.
+#
+# Calibrated against the reference clip, comparing the open-palm phase with the
+# held-fist phase (degrees at the middle joint, world landmarks):
+#
+#   finger    palm p10    fist p90    margin
+#   thumb          169         129       40
+#   index          140          61       79
+#   middle         150          41      109
+#   ring           150          51       99
+#   pinky          147          80       67
+#
+# The thresholds sit midway between the two, so both a lazily-held finger and
+# a loosely-curled one land on the right side. Lower them if fingers you're
+# holding out read as curled; raise them if slack fingers read as extended.
+FINGER_STRAIGHT_DEG = 110.0
+THUMB_STRAIGHT_DEG = 150.0
+
+# --- Motion -----------------------------------------------------------------
+# How many recent palm positions to keep. At ~25fps, 30 frames is about 1.2s —
+# roughly one deliberate circle.
+MOTION_HISTORY = 30
+
+# Degrees swept around the path's own centre before it counts as circling.
+# A full loop is 360; requiring less means a half-circle still registers, which
+# matters because the palm phase is often cut short by closing into the fist.
+CIRCLE_MIN_SWEPT_DEG = 200.0
+
+# Minimum distance travelled, in aspect-corrected image widths. Stops a hand
+# jittering in place from accumulating swept angle out of pure noise.
+CIRCLE_MIN_PATH = 0.25
 
 # --- Recording (watcher/record.py) ------------------------------------------
 # Number key -> label. Record the gesture you *want*, and also the shapes it

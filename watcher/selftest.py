@@ -87,7 +87,10 @@ def one_finger():
 
 
 def feat(landmarks, hand="Right"):
-    return features.extract(landmarks, hand)
+    # Synthetic hands are built in a flat plane, so the same points serve as
+    # both image and world landmarks. Real code passes MediaPipe's separate
+    # world landmarks for the geometry.
+    return features.extract(landmarks, landmarks, hand)
 
 
 ok = True

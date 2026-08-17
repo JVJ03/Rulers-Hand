@@ -25,6 +25,7 @@ from sequences import SequenceDetector
 # --- Shapes -----------------------------------------------------------------
 
 OPEN_PALM = "OPEN_PALM"
+CIRCLING_PALM = "CIRCLING_PALM"
 FIST = "FIST"
 
 
@@ -44,8 +45,12 @@ def _is_fist(f: HandFeatures) -> bool:
     return f.is_fist
 
 
-def classify_shape(hand_features: list[HandFeatures]) -> str | None:
-    """Name the shape of the hand right now, or None.
+def classify_shape(hand_features: list[HandFeatures], tracker=None) -> str | None:
+    """Name what the hand is doing right now, or None.
+
+    `tracker` carries the recent motion path. An open palm that has circled far
+    enough is a different thing from one held still, and only the moving one is
+    part of "not quite my tempo" — so it gets its own name.
 
     Only the first hand is considered. Two-handed gestures will need their own
     path here; that's milestone 7's problem.
@@ -58,7 +63,10 @@ def classify_shape(hand_features: list[HandFeatures]) -> str | None:
         return None
 
     if _is_open_palm(f):
-        return OPEN_PALM
+        circling = tracker is not None and tracker.is_circling(
+            config.CIRCLE_MIN_SWEPT_DEG, config.CIRCLE_MIN_PATH
+        )
+        return CIRCLING_PALM if circling else OPEN_PALM
     if _is_fist(f):
         return FIST
     return None
@@ -70,23 +78,28 @@ NOT_QUITE_MY_TEMPO = "NOT_QUITE_MY_TEMPO"
 
 # Ordered shapes that make up each gesture. Intervening shapes are ignored and
 # frames with no hand don't reset progress — see sequences.py for why.
+#
+# The first step is CIRCLING_PALM, not OPEN_PALM: the circle is what makes this
+# the gesture rather than someone simply holding a hand up and then relaxing it.
 SEQUENCES = [
     SequenceDetector(
         name=NOT_QUITE_MY_TEMPO,
-        steps=[OPEN_PALM, FIST],
+        steps=[CIRCLING_PALM, FIST],
         window_ms=config.SEQUENCE_WINDOW_MS,
         cooldown_ms=config.COOLDOWN_MS,
     ),
 ]
 
 
-def update(hand_features: list[HandFeatures], now: float) -> tuple[str | None, str | None]:
+def update(
+    hand_features: list[HandFeatures], now: float, tracker=None
+) -> tuple[str | None, str | None]:
     """Advance every sequence by one frame.
 
     Returns `(shape_now, fired_gesture)` — the shape so the overlay can show
     what's being seen, and the gesture name on the frame it completes.
     """
-    shape = classify_shape(hand_features)
+    shape = classify_shape(hand_features, tracker)
     fired = None
     for sequence in SEQUENCES:
         result = sequence.update(shape, now)

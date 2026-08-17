@@ -127,6 +127,7 @@ def draw_gesture_panel(
     shape: str | None,
     sequences,
     fired_ago: float,
+    tracker=None,
 ) -> None:
     """Top-right: the shape being seen now, and how far each sequence has got.
 
@@ -135,7 +136,7 @@ def draw_gesture_panel(
     """
     w = frame.shape[1]
     x, y = w - 336, 46
-    ph = 56 + len(sequences) * 34
+    ph = 56 + len(sequences) * 34 + (22 if tracker is not None else 0)
     _panel(frame, x, y, 324, ph)
 
     if shape:
@@ -148,10 +149,25 @@ def draw_gesture_panel(
 
     _text(frame, label, x + 14, y + 30, scale=0.6, color=colour, weight=2)
 
+    # Circular-motion readout. The swept figure is what decides whether an open
+    # palm counts as circling, so seeing it live is how you tune the threshold.
+    row_offset = 0
+    if tracker is not None:
+        import config
+        swept = tracker.swept_deg
+        enough = abs(swept) >= config.CIRCLE_MIN_SWEPT_DEG
+        far = tracker.path_length >= config.CIRCLE_MIN_PATH
+        _text(frame, f"swept {swept:+5.0f} / {config.CIRCLE_MIN_SWEPT_DEG:.0f}",
+              x + 14, y + 48, scale=0.42,
+              color=(90, 230, 120) if enough else (185, 185, 192))
+        _text(frame, f"path {tracker.path_length:.2f}", x + 170, y + 48, scale=0.42,
+              color=(90, 230, 120) if far else (185, 185, 192))
+        row_offset = 22
+
     # One row per sequence: its name, then a pip per step. Pips light up as
     # each shape in the sequence is seen.
     for i, seq in enumerate(sequences):
-        row_y = y + 54 + i * 34
+        row_y = y + 54 + row_offset + i * 34
         done = seq.matched
         name_colour = (215, 215, 222) if done == 0 else (235, 190, 80)
         _text(frame, seq.name, x + 14, row_y + 10, scale=0.44, color=name_colour)

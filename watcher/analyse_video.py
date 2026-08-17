@@ -84,9 +84,15 @@ def main() -> int:
     print(f"{path.name}: {w}x{h}, {fps:.1f} fps, {total} frames, "
           f"{total / fps:.1f}s\n")
 
+    import config
+    from motion import MotionTracker
+
+    tracker = MotionTracker(config.MOTION_HISTORY, aspect=w / max(1, h))
+
     rows: list[tuple[float, features.HandFeatures]] = []
     fired_at: list[tuple[float, str]] = []
     shape_timeline: list[tuple[float, str | None]] = []
+    swept_peak = 0.0
     index = 0
     with gw.create_landmarker() as landmarker:
         while True:
@@ -103,26 +109,22 @@ def main() -> int:
             result = landmarker.detect_for_video(image, int(index / fps * 1000))
 
             t = index / fps
-            hand_features = []
-            if result.hand_landmarks:
-                hand = result.hand_landmarks[0]
-                name = "?"
-                try:
-                    name = result.handedness[0][0].category_name
-                except (IndexError, AttributeError):
-                    pass
-                f = features.extract(hand, name)
-                hand_features = [f]
-                rows.append((t, f))
+            hand_features = gw.hand_features_from(result)
+            if hand_features:
+                rows.append((t, hand_features[0]))
+
+            tracker.update(hand_features[0].centre if hand_features else None, t)
+            swept_peak = max(swept_peak, abs(tracker.swept_deg))
 
             if args.simulate:
                 # Feed the real pipeline using video time, so sequence windows
                 # and cooldowns behave exactly as they would live.
                 import gestures
-                shape, fired = gestures.update(hand_features, t)
+                shape, fired = gestures.update(hand_features, t, tracker)
                 shape_timeline.append((t, shape))
                 if fired:
                     fired_at.append((t, fired))
+                    tracker.reset()
     cap.release()
 
     if args.simulate:
@@ -136,7 +138,9 @@ def main() -> int:
         counts: dict[str, int] = {}
         for s in seen:
             counts[s] = counts.get(s, 0) + 1
-        print(f"  shapes recognised: {counts or '(none)'}\n")
+        print(f"  shapes recognised: {counts or '(none)'}")
+        print(f"  peak swept angle: {swept_peak:.0f} deg "
+              f"(threshold {config.CIRCLE_MIN_SWEPT_DEG:.0f})\n")
 
     if not rows:
         print("No hands detected anywhere in the clip.", file=sys.stderr)

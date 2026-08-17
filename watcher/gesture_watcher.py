@@ -35,8 +35,24 @@ import config
 import features
 import gestures
 import overlay
-from debounce import HoldDebouncer
 from dispatch import Dispatcher
+from motion import MotionTracker
+
+
+def hand_features_from(result) -> list[features.HandFeatures]:
+    """Build features for every detected hand, pairing image and world landmarks."""
+    hands = result.hand_landmarks or []
+    world = getattr(result, "hand_world_landmarks", None) or []
+    out = []
+    for i, landmarks in enumerate(hands):
+        out.append(
+            features.extract(
+                landmarks,
+                world[i] if i < len(world) else None,
+                read_handedness(result, i),
+            )
+        )
+    return out
 
 MODEL_PATH = Path(__file__).parent / "models" / "hand_landmarker.task"
 
@@ -107,8 +123,11 @@ def main(argv: list[str] | None = None) -> int:
     show_panels = True
     start = time.perf_counter()
 
-    debouncer = HoldDebouncer(config.HOLD_DURATION_MS, config.COOLDOWN_MS)
     dispatcher = Dispatcher()
+    tracker = MotionTracker(
+        config.MOTION_HISTORY,
+        aspect=capture_size[0] / max(1, capture_size[1]),
+    )
     last_fire_at = -1e9
     fire_count = 0
 
@@ -131,14 +150,13 @@ def main(argv: list[str] | None = None) -> int:
             result = landmarker.detect_for_video(mp_image, timestamp_ms)
 
             hands = result.hand_landmarks or []
-            hand_features = [
-                features.extract(landmarks, read_handedness(result, i))
-                for i, landmarks in enumerate(hands)
-            ]
+            hand_features = hand_features_from(result)
 
             now = time.monotonic()
-            shape, fired = gestures.update(hand_features, now)
+            tracker.update(hand_features[0].centre if hand_features else None, now)
+            shape, fired = gestures.update(hand_features, now, tracker)
             if fired:
+                tracker.reset()  # start the next circle from scratch
                 fire_count += 1
                 last_fire_at = now
                 dispatcher.send(fired, config.HOLD_DURATION_MS)
@@ -167,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
                     shape,
                     gestures.SEQUENCES,
                     now - last_fire_at,
+                    tracker,
                 )
 
             overlay.draw_top_bar(view, fps, capture_size, len(hands), dispatcher.status)
