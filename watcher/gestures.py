@@ -18,6 +18,8 @@ plain statements about hands.
 
 from __future__ import annotations
 
+from collections import deque
+
 import config
 from features import HandFeatures
 from sequences import SequenceDetector
@@ -30,19 +32,61 @@ FIST = "FIST"
 
 
 def _is_open_palm(f: HandFeatures) -> bool:
-    """All four fingers out and spread apart.
+    """A deliberately open hand: every finger out, thumb included, fanned apart.
 
-    Requiring spread is what separates a deliberate open palm from a hand that
-    merely has its fingers straight. Measured from the reference clip: the
-    open-palm phase sat at 0.32-0.36, the fist at 0.09-0.14.
+    Stricter than `is_flat_palm`, which ignores the thumb. The thumb is
+    included here precisely because this gesture starts the sequence — without
+    it, a hand with one or two fingers loosely straight could pass, and with
+    FINGER_STRAIGHT_DEG at 110 a lazily-curled finger sometimes does. The
+    calibration supports the extra check: the thumb measured 169 during the
+    open palm against 129 during the fist, so it separates cleanly.
+
+    Spread is what separates a deliberate open palm from a hand that merely has
+    straight fingers. Measured on the reference clip: open palm 0.37-0.43,
+    fist 0.19-0.20.
     """
-    return f.is_flat_palm and f.spread >= config.OPEN_PALM_MIN_SPREAD
+    if f.spread < config.OPEN_PALM_MIN_SPREAD:
+        return False
+    if config.OPEN_PALM_REQUIRE_THUMB:
+        return all(f.extended)  # all five, thumb included
+    return f.is_flat_palm
 
 
 def _is_fist(f: HandFeatures) -> bool:
     """All four fingers curled. The thumb is ignored — it rides outside a fist
     as often as inside, and checking it only causes misses."""
     return f.is_fist
+
+
+# Recent history of whether the gesturing hand was identifiable. MediaPipe's
+# handedness wobbles during fast motion — measured on the reference clip, it
+# reported both Left and Right for the same hand, which cost one repetition in
+# six once right-hand-only was enforced.
+_hand_seen: deque[bool] = deque(maxlen=config.HANDEDNESS_VOTE_FRAMES)
+
+
+def _pick_gesturing_hand(hand_features: list[HandFeatures]) -> HandFeatures | None:
+    """Choose which visible hand drives gestures.
+
+    Both hands are tracked and drawn regardless; this only decides who gets
+    listened to. When the label wobbles for a frame or two but only one hand is
+    on screen, there's nothing it could be confused with, so the recent history
+    is trusted over the current frame.
+    """
+    if not config.REQUIRE_HANDEDNESS:
+        return hand_features[0]
+
+    match = next((h for h in hand_features if h.handedness == config.GESTURE_HAND), None)
+    _hand_seen.append(match is not None)
+    if match is not None:
+        return match
+
+    # Label lost this frame. Accept a lone hand if the label was mostly right
+    # across the recent window — but never when both hands are visible, since
+    # then it really could be the other one.
+    if len(hand_features) == 1 and _hand_seen and sum(_hand_seen) >= len(_hand_seen) / 2:
+        return hand_features[0]
+    return None
 
 
 def classify_shape(hand_features: list[HandFeatures], tracker=None) -> str | None:
@@ -57,9 +101,9 @@ def classify_shape(hand_features: list[HandFeatures], tracker=None) -> str | Non
     """
     if not hand_features:
         return None
-    f = hand_features[0]
 
-    if config.REQUIRE_HANDEDNESS and f.handedness != config.GESTURE_HAND:
+    f = _pick_gesturing_hand(hand_features)
+    if f is None:
         return None
 
     if _is_open_palm(f):

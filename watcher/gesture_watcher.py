@@ -132,6 +132,7 @@ def main(argv: list[str] | None = None) -> int:
     tracker = MotionTracker(
         config.MOTION_HISTORY,
         aspect=capture_size[0] / max(1, capture_size[1]),
+        max_age_s=config.MOTION_MAX_AGE_S,
     )
     last_fire_at = -1e9
     last_fired_name: str | None = None

@@ -91,7 +91,8 @@ def main() -> int:
     import config
     from motion import MotionTracker
 
-    tracker = MotionTracker(config.MOTION_HISTORY, aspect=w / max(1, h))
+    tracker = MotionTracker(config.MOTION_HISTORY, aspect=w / max(1, h),
+                            max_age_s=config.MOTION_MAX_AGE_S)
 
     rows: list[tuple[float, features.HandFeatures]] = []
     fired_at: list[tuple[float, str]] = []

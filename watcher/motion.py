@@ -24,19 +24,27 @@ from collections import deque
 class MotionTracker:
     """Rolling history of palm position, with a circularity measure."""
 
-    def __init__(self, history: int, aspect: float = 1.0) -> None:
+    def __init__(self, history: int, aspect: float = 1.0, max_age_s: float = 1.5) -> None:
         self.aspect = aspect
+        self.max_age_s = max_age_s
         self._points: deque[tuple[float, float, float]] = deque(maxlen=history)
 
     def update(self, centre: tuple[float, float] | None, now: float) -> None:
-        """Add this frame's palm position, or None if no hand was seen."""
-        if centre is None:
-            # Don't clear the history — a hand lost to motion blur for a few
-            # frames shouldn't erase the loop it was halfway through.
-            return
-        # Stored raw, in image coordinates, so the trail can be drawn directly.
-        # Aspect correction is applied inside the measurements instead.
-        self._points.append((centre[0], centre[1], now))
+        """Add this frame's palm position, or None if no hand was seen.
+
+        Old points expire on age, whether or not a hand is visible, so the
+        trail drains away instead of freezing on screen when you drop your
+        hand. That also keeps the swept angle honest: a loop you traced five
+        seconds ago shouldn't still be counting toward the current one.
+        """
+        if centre is not None:
+            # Stored raw, in image coordinates, so the trail can be drawn
+            # directly. Aspect correction is applied inside the measurements.
+            self._points.append((centre[0], centre[1], now))
+
+        cutoff = now - self.max_age_s
+        while self._points and self._points[0][2] < cutoff:
+            self._points.popleft()
 
     def reset(self) -> None:
         self._points.clear()

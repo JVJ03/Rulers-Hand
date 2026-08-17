@@ -23,8 +23,8 @@ CAMERA_INDEX = None  # set to an int to ignore CAMERA_NAME and pin an index
 # 1440p spends inference time on detail the model discards before it looks.
 # Re-check with `python watcher/tune_resolution.py` if you move the camera or
 # change where you sit.
-FRAME_WIDTH = 1920
-FRAME_HEIGHT = 1080
+FRAME_WIDTH = 1280
+FRAME_HEIGHT = 720
 TARGET_FPS = 30  # must be set explicitly or the driver may pick its slowest mode
 MIRROR_PREVIEW = True  # flip horizontally so it behaves like a mirror
 
@@ -76,16 +76,26 @@ COOLDOWN_MS = 1200  # ignore repeat fires of the same gesture within this window
 # on both sides.
 OPEN_PALM_MIN_SPREAD = 0.28
 
+# Require the thumb out as well, so an open palm means a genuinely open hand.
+# Without this, a hand showing one or two loosely-straight fingers can satisfy
+# the open-palm step and start the sequence — the thumb is what makes it
+# unambiguous. Turn off only if your natural gesture tucks the thumb.
+OPEN_PALM_REQUIRE_THUMB = True
+
 # How long a whole sequence may take, from its first shape to its last.
 # The reference clip ran 0.72-1.48s of open palm, then ~0.24s to close, so
 # 2500ms leaves room for a slow, deliberate performance.
 SEQUENCE_WINDOW_MS = 2500
 
-# Restrict gestures to one hand? MediaPipe's handedness proved unreliable
-# during fast motion in the reference clip — it reported both Left and Right
-# for the same hand across the same clip. Off by default because of that; turn
-# it on if your other hand keeps triggering things.
-REQUIRE_HANDEDNESS = False
+# Only the right hand drives gestures. Both hands are still tracked and drawn —
+# this just decides which one the classifier listens to, picking the matching
+# hand out of however many are visible.
+#
+# Caveat worth knowing: MediaPipe's handedness wobbled during fast motion in
+# the reference clip, reporting both Left and Right for the same hand. If
+# gestures start getting missed mid-motion, this is the first thing to suspect;
+# set it False to confirm before hunting elsewhere.
+REQUIRE_HANDEDNESS = True
 GESTURE_HAND = "Right"
 
 # --- Finger extension -------------------------------------------------------
@@ -118,6 +128,16 @@ THUMB_STRAIGHT_DEG = 150.0
 # How many recent palm positions to keep. At ~25fps, 30 frames is about 1.2s —
 # roughly one deliberate circle.
 MOTION_HISTORY = 30
+
+# How long a point stays on the trail. Points expire on age whether or not a
+# hand is visible, so the trail drains away when you drop your hand instead of
+# freezing on screen — and a loop traced seconds ago stops counting toward the
+# current swept angle.
+MOTION_MAX_AGE_S = 1.5
+
+# Frames of handedness history used to ride out MediaPipe mislabelling a hand
+# mid-motion. See _pick_gesturing_hand in gestures.py.
+HANDEDNESS_VOTE_FRAMES = 15
 
 # Degrees swept around the path's own centre before it counts as circling.
 # A full loop is 360; requiring less means a half-circle still registers, which

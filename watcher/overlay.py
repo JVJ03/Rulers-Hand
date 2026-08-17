@@ -90,13 +90,21 @@ def draw_motion_trail(frame, tracker) -> None:
     h, w = frame.shape[:2]
     pixels = [(int(x * w), int(y * h)) for x, y in pts]
 
+    # Fade the whole trail as it empties, so it dissolves rather than vanishing
+    # when the last point expires. Points age out on time in MotionTracker, so
+    # this drains steadily once you drop your hand.
+    fullness = min(1.0, len(pts) / max(1, tracker._points.maxlen or len(pts)))
+
     n = len(pixels)
     for i, (a, b) in enumerate(zip(pixels, pixels[1:])):
         age = i / max(1, n - 1)  # 0 = oldest, 1 = newest
-        colour = (int(90 + 60 * age), int(120 + 110 * age), int(235 - 80 * age))
-        cv2.line(frame, a, b, colour, 1 + int(age * 2), cv2.LINE_AA)
+        f = age * fullness
+        colour = (int(50 + 100 * f), int(60 + 170 * f), int(70 + 165 * f))
+        cv2.line(frame, a, b, colour, 1 + int(f * 2), cv2.LINE_AA)
 
-    cv2.circle(frame, pixels[-1], 6, (120, 230, 255), -1, cv2.LINE_AA)
+    head = int(180 + 75 * fullness)
+    cv2.circle(frame, pixels[-1], 3 + int(3 * fullness),
+               (int(60 + 60 * fullness), head, 255), -1, cv2.LINE_AA)
 
     cx = int(sum(p[0] for p in pixels) / n)
     cy = int(sum(p[1] for p in pixels) / n)
