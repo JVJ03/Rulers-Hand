@@ -50,6 +50,38 @@ cd extension; npm install; npm run compile
 There is no test suite and no CI. Don't add either unless asked — the feedback
 loop here is "wave at the camera and see what happens".
 
+## Camera
+
+Target is the **DELL Display 4MP Webcam** (the pop-up module on the P2724DEB
+monitor), selected by name in `config.py`. Never hardcode an index: DirectShow
+ordering shifts with docking state. Observed both ways round in one session —
+the Dell was index 1, then index 0 after a reconnect.
+
+The laptop's `Integrated Camera` is effectively blind while docked (measured
+mean brightness 2.4/255, lid closed). It only exists as a fallback.
+
+Measured end-to-end, 1280x720, MJPG, `CAP_PROP_FPS=30`:
+
+| | Dell 4MP | Integrated |
+| --- | --- | --- |
+| capture | 7.4 ms | 63.0 ms |
+| inference | 27.1 ms | 26.4 ms |
+| **end-to-end** | **29.0 fps** | **11.2 fps** |
+
+At 29 fps a 400 ms hold gets ~12 frames to confirm — plenty. **Threaded capture
+is not needed**; don't add that complexity unless the feel demands it.
+
+### If the Dell camera vanishes
+
+It presents as `PID_D003`, a *separate* USB device from the monitor's
+speakerphone (`PID_C034`). The speakerphone working tells you nothing about the
+camera. If `Get-PnpDevice -Class Camera` shows `Present: False` with no problem
+code, it is not attached to the bus — that is a physical/monitor-side state
+(module retracted, or disabled in the OSD), not something software can fix.
+Reboots and driver work do not help. Checked and ruled out once already:
+driver faults, disabled state, apps holding the device, stale enumeration,
+and USB SuperSpeed availability.
+
 ## Environment facts (verified 2026-08-17)
 
 - Windows 11, PowerShell. `&&` does not work in this shell — use `;`.
