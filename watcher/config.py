@@ -33,10 +33,13 @@ PREVIEW_SCALE = 0.5
 
 # --- MediaPipe Hands --------------------------------------------------------
 # The landmark model runs once per detected hand, so this directly multiplies
-# inference cost. Measured on real footage: 42.4ms at 2 hands vs 27.4ms at 1 —
-# a 35% saving for a capability nothing uses until TWO_HAND_SLAM in milestone 7.
-# Set it back to 2 then; the code paths already handle multiple hands.
-MAX_HANDS = 1
+# inference cost — measured on real footage, 42.4ms at 2 hands against 27.4ms
+# at 1. Kept at 2 deliberately: seeing both hands is wanted now, and it's also
+# what TWO_HAND_SLAM will need in milestone 7.
+#
+# INFERENCE_WIDTH below claws back part of that cost, so 2 hands lands around
+# 46ms rather than the 51ms it would cost on full-resolution frames.
+MAX_HANDS = 2
 
 # Inference runs on a downscaled copy while the preview keeps full resolution.
 # This is free: MediaPipe resizes to a 192px input internally regardless, and

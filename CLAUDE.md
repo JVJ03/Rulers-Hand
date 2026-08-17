@@ -98,8 +98,8 @@ hand. Measured over 150 frames of real footage:
 
 Two levers, both applied:
 
-- **`MAX_HANDS = 1`** — the single biggest win, 35% off inference. Set it back
-  to 2 for `TWO_HAND_SLAM` in milestone 7 and accept the cost then.
+- **`MAX_HANDS = 2`** — kept at 2 so both hands are tracked. Costs about 15ms
+  per frame against 1 hand; INFERENCE_WIDTH offsets part of it.
 - **`INFERENCE_WIDTH = 640`** — inference runs on a downscaled copy while the
   preview keeps full resolution. Free, because MediaPipe resizes to a 192px
   input internally anyway and returns *normalised* landmarks. Detection rate
