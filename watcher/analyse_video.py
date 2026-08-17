@@ -82,7 +82,11 @@ def main() -> int:
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     print(f"{path.name}: {w}x{h}, {fps:.1f} fps, {total} frames, "
-          f"{total / fps:.1f}s\n")
+          f"{total / fps:.1f}s", flush=True)
+    if total > 900:
+        print(f"  (that's {total / fps / 60:.1f} minutes of video — "
+              f"expect roughly {total * 0.045 / 60:.0f} min to process)", flush=True)
+    print(flush=True)
 
     import config
     from motion import MotionTracker
