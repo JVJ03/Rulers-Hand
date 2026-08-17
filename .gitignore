@@ -18,3 +18,8 @@ Thumbs.db
 # Local overrides — copy the .example files and edit those
 watcher/local_config.py
 extension/gesture-map.local.json
+
+# Recorded gesture samples. These are landmark coordinates of a real person's
+# hands — personal data. They stay on the machine that recorded them and are
+# never pushed to GitHub. Re-record with watcher/record.py on any new machine.
+data/

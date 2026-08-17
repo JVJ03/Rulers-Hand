@@ -45,6 +45,18 @@ SERVER_URL = "http://127.0.0.1:9247/gesture"
 HOLD_DURATION_MS = 400  # how long a gesture must persist before it fires
 COOLDOWN_MS = 1200  # ignore repeat fires of the same gesture within this window
 
+# --- Recording (watcher/record.py) ------------------------------------------
+# Number key -> label. Record the gesture you *want*, and also the shapes it
+# currently fires on by mistake — the difference between them is what the
+# classifier rule gets built from. Add or rename freely.
+RECORD_LABELS = {
+    "1": "STOP_CHOP",  # the real gesture you mean
+    "2": "OPEN_HAND",  # plain open palm — currently a false positive
+    "3": "RELAXED",  # hand just resting in frame, doing nothing
+    "4": "SPARE_A",
+    "5": "SPARE_B",
+}
+
 # --- Arming (milestone 5) ---------------------------------------------------
 ARM_HOTKEY = "ctrl+alt+g"
 START_ARMED = False  # always boot disarmed; you arm it deliberately
