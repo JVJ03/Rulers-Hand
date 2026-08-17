@@ -1,14 +1,17 @@
-"""Gesture watcher — MILESTONE 1: webcam feed + MediaPipe hand landmarks.
+"""Gesture watcher — MILESTONE 1 + debug view.
 
-No gesture classification, no HTTP dispatch, no arming. This exists purely to
-prove MediaPipe sees your hands on this machine at a usable frame rate.
+Shows the webcam with hand landmarks and a live readout of what the program
+thinks your hands are doing: which fingers it considers extended, how the hand
+is tilted, how spread the fingers are. No gesture is wired to any action yet —
+this is the instrument you use to design the classifier in milestone 2.
 
 Run:
     .venv\\Scripts\\python.exe watcher\\gesture_watcher.py
 
 Keys:
     q / Esc   quit
-    d         toggle the landmark overlay (useful for judging lighting)
+    d         landmark overlay on/off
+    p         readout panels on/off
 """
 
 from __future__ import annotations
@@ -26,9 +29,12 @@ from mediapipe.tasks.python import vision
 
 import camera
 import config
-import hand_landmarks as hl
+import features
+import overlay
 
 MODEL_PATH = Path(__file__).parent / "models" / "hand_landmarker.task"
+
+KEY_HINTS = "q quit    d landmarks    p panels"
 
 
 def create_landmarker() -> vision.HandLandmarker:
@@ -55,28 +61,24 @@ def create_landmarker() -> vision.HandLandmarker:
     return vision.HandLandmarker.create_from_options(options)
 
 
-def draw_hud(frame, fps: float, hand_count: int, overlay_on: bool) -> None:
-    """Milestone-1 HUD: just enough to tell whether tracking is healthy."""
-    h, w = frame.shape[:2]
-    cv2.rectangle(frame, (0, 0), (w, 34), (25, 25, 25), thickness=-1)
-    cv2.putText(
-        frame,
-        f"MILESTONE 1  |  {fps:5.1f} fps  |  hands: {hand_count}",
-        (12, 23),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        config.COLOR_TEXT,
-        1,
-        cv2.LINE_AA,
-    )
-    hint = "q quit   d overlay" + ("" if overlay_on else "   [overlay off]")
-    cv2.putText(
-        frame, hint, (12, h - 14), cv2.FONT_HERSHEY_SIMPLEX, 0.5, config.COLOR_MUTED, 1, cv2.LINE_AA
-    )
+def read_handedness(result, i: int) -> str:
+    """Which hand this is, as *you* see it in the mirrored preview.
+
+    MediaPipe is looking at an already-mirrored frame, so it reports the
+    opposite hand from the real one. Flipping the label back means "RIGHT HAND"
+    on screen is the hand you'd call your right hand.
+    """
+    try:
+        name = result.handedness[i][0].category_name
+    except (IndexError, AttributeError):
+        return "?"
+    if config.MIRROR_PREVIEW:
+        return {"Left": "Right", "Right": "Left"}.get(name, name)
+    return name
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Claudelash gesture watcher (milestone 1)")
+    parser = argparse.ArgumentParser(description="Claudelash gesture watcher")
     parser.add_argument(
         "--camera",
         type=int,
@@ -89,11 +91,17 @@ def main(argv: list[str] | None = None) -> int:
     print("Opening camera... (first frame can take a second)")
 
     cap = camera.open_camera(args.camera)
+    capture_size = (
+        int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+        int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+    )
+
     frame_times: deque[float] = deque(maxlen=30)
-    overlay_on = True
+    show_landmarks = True
+    show_panels = True
     start = time.perf_counter()
 
-    print("Ready. Press q or Esc in the preview window to quit.")
+    print(f"Ready at {capture_size[0]}x{capture_size[1]}. {KEY_HINTS}")
 
     with create_landmarker() as landmarker:
         while True:
@@ -105,15 +113,17 @@ def main(argv: list[str] | None = None) -> int:
             if config.MIRROR_PREVIEW:
                 frame = cv2.flip(frame, 1)
 
+            # Inference runs on the full-resolution frame.
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
             timestamp_ms = int((time.perf_counter() - start) * 1000)
             result = landmarker.detect_for_video(mp_image, timestamp_ms)
 
             hands = result.hand_landmarks or []
-            if overlay_on:
-                for landmarks in hands:
-                    hl.draw_hand(frame, landmarks)
+            hand_features = [
+                features.extract(landmarks, read_handedness(result, i))
+                for i, landmarks in enumerate(hands)
+            ]
 
             frame_times.append(time.perf_counter())
             fps = 0.0
@@ -122,22 +132,29 @@ def main(argv: list[str] | None = None) -> int:
                 if span > 0:
                     fps = (len(frame_times) - 1) / span
 
-            # Shrink for display only — everything above ran at full resolution.
-            if config.PREVIEW_SCALE != 1.0:
-                frame = cv2.resize(
-                    frame, None,
-                    fx=config.PREVIEW_SCALE, fy=config.PREVIEW_SCALE,
-                    interpolation=cv2.INTER_AREA,
-                )
+            # Shrink *before* drawing. Landmarks are normalised, so the skeleton
+            # lands in the same place either way, and drawing on the smaller
+            # frame is far cheaper at 2560x1440.
+            view = overlay.scale_for_preview(frame)
 
-            draw_hud(frame, fps, len(hands), overlay_on)
-            cv2.imshow("Claudelash - gesture watcher", frame)
+            if show_landmarks:
+                overlay.draw_hands(view, hands)
+            if show_panels:
+                for slot, feature in enumerate(hand_features[:2]):
+                    overlay.draw_hand_panel(view, feature, slot)
+                overlay.draw_verdict(view, hand_features)
+
+            overlay.draw_top_bar(view, fps, capture_size, len(hands))
+            overlay.draw_footer(view, KEY_HINTS)
+            cv2.imshow("Claudelash - gesture watcher", view)
 
             key = cv2.waitKey(1) & 0xFF
             if key in (ord("q"), 27):
                 break
             if key == ord("d"):
-                overlay_on = not overlay_on
+                show_landmarks = not show_landmarks
+            if key == ord("p"):
+                show_panels = not show_panels
 
     cap.release()
     cv2.destroyAllWindows()
