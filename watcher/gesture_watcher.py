@@ -1,9 +1,12 @@
-"""Gesture watcher — MILESTONE 1 + debug view.
+"""Gesture watcher — MILESTONE 2.
 
 Shows the webcam with hand landmarks and a live readout of what the program
-thinks your hands are doing: which fingers it considers extended, how the hand
-is tilted, how spread the fingers are. No gesture is wired to any action yet —
-this is the instrument you use to design the classifier in milestone 2.
+thinks your hands are doing, classifies STOP_CHOP, and prints to the console
+when it fires after being held.
+
+Nothing is dispatched anywhere yet — no HTTP, no VS Code, no keystrokes. The
+point of this milestone is to confirm the gesture triggers when you mean it and
+stays quiet when you don't.
 
 Run:
     .venv\\Scripts\\python.exe watcher\\gesture_watcher.py
@@ -30,7 +33,9 @@ from mediapipe.tasks.python import vision
 import camera
 import config
 import features
+import gestures
 import overlay
+from debounce import HoldDebouncer
 
 MODEL_PATH = Path(__file__).parent / "models" / "hand_landmarker.task"
 
@@ -101,6 +106,10 @@ def main(argv: list[str] | None = None) -> int:
     show_panels = True
     start = time.perf_counter()
 
+    debouncer = HoldDebouncer(config.HOLD_DURATION_MS, config.COOLDOWN_MS)
+    last_fire_at = -1e9
+    fire_count = 0
+
     print(f"Ready at {capture_size[0]}x{capture_size[1]}. {KEY_HINTS}")
 
     with create_landmarker() as landmarker:
@@ -125,6 +134,15 @@ def main(argv: list[str] | None = None) -> int:
                 for i, landmarks in enumerate(hands)
             ]
 
+            now = time.monotonic()
+            gesture = gestures.classify(hand_features)
+            fired = debouncer.update(gesture, now)
+            if fired:
+                fire_count += 1
+                last_fire_at = now
+                # Milestone 2 stops here: no dispatch, just proof it triggers.
+                print(f"[{fire_count:3d}] FIRED  {fired}", flush=True)
+
             frame_times.append(time.perf_counter())
             fps = 0.0
             if len(frame_times) > 1:
@@ -142,7 +160,13 @@ def main(argv: list[str] | None = None) -> int:
             if show_panels:
                 for slot, feature in enumerate(hand_features[:2]):
                     overlay.draw_hand_panel(view, feature, slot)
-                overlay.draw_verdict(view, hand_features)
+                overlay.draw_gesture_panel(
+                    view,
+                    hand_features,
+                    gesture,
+                    debouncer.progress(now),
+                    now - last_fire_at,
+                )
 
             overlay.draw_top_bar(view, fps, capture_size, len(hands))
             overlay.draw_footer(view, KEY_HINTS)

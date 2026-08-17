@@ -92,29 +92,64 @@ def draw_hand_panel(frame, feature: HandFeatures, slot: int) -> None:
           color=(200, 200, 206))
 
 
-def draw_verdict(frame, features_list: list[HandFeatures]) -> None:
-    """A plain-language summary of the current hand shape.
+def _shape_summary(features_list: list[HandFeatures]) -> tuple[str, tuple[int, int, int]]:
+    """Plain-language description of the hand, for when no gesture matches.
 
-    Milestone 2 replaces this with the real gesture name. Until then it names
-    the shapes the classifier will be built on, so you can see whether they
-    trigger cleanly before any of them are wired to an action.
+    Useful when a gesture *should* be firing and isn't — it tells you which
+    part of the shape the classifier disagrees with you about.
     """
     if not features_list:
-        label, colour = "no hands", (150, 150, 158)
-    else:
-        f = features_list[0]
-        if f.is_flat_palm and f.is_upright:
-            label, colour = "FLAT PALM, UPRIGHT", (90, 230, 120)
-        elif f.is_flat_palm:
-            label, colour = f"flat palm (tilt {f.tilt_deg:+.0f})", (230, 200, 90)
-        elif f.is_fist:
-            label, colour = "FIST", (90, 230, 120)
-        else:
-            label, colour = f"{f.extended_count} fingers out", (190, 190, 198)
+        return "no hands", (150, 150, 158)
+    f = features_list[0]
+    if f.is_flat_palm and not f.is_upright:
+        return f"flat palm, tilted {f.tilt_deg:+.0f}", (230, 200, 90)
+    if f.is_flat_palm:
+        return "flat palm", (190, 190, 198)
+    if f.is_fist:
+        return "fist", (190, 190, 198)
+    return f"{f.extended_count} fingers out", (190, 190, 198)
 
+
+def draw_gesture_panel(
+    frame,
+    features_list: list[HandFeatures],
+    gesture: str | None,
+    progress: float,
+    fired_ago: float,
+) -> None:
+    """Top-right: what gesture is recognised, and how close it is to firing.
+
+    `fired_ago` is seconds since the last firing — used to flash the panel so a
+    fire is visible even though it only lasts one frame.
+    """
     w = frame.shape[1]
-    _panel(frame, w - 336, 46, 324, 44)
-    _text(frame, label, w - 322, 74, scale=0.62, color=colour, weight=2)
+    x, y, pw, ph = w - 336, 46, 324, 70
+    _panel(frame, x, y, pw, ph)
+
+    if gesture:
+        label, colour = gesture, (90, 230, 120)
+    else:
+        label, colour = _shape_summary(features_list)
+
+    # Flash on a recent fire, so you can see it happened.
+    if fired_ago < 0.4:
+        cv2.rectangle(frame, (x, y), (x + pw, y + ph), (90, 230, 120), 2, cv2.LINE_AA)
+
+    _text(frame, label, x + 14, y + 30, scale=0.62, color=colour, weight=2)
+
+    # Charge bar. Fills left to right while a gesture is being held.
+    bar_x, bar_y, bar_w, bar_h = x + 14, y + 44, pw - 28, 10
+    cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h), (70, 70, 78), 1)
+    if progress > 0:
+        fill = int(bar_w * progress)
+        full = progress >= 1.0
+        cv2.rectangle(
+            frame,
+            (bar_x + 1, bar_y + 1),
+            (bar_x + max(1, fill) - 1, bar_y + bar_h - 1),
+            (90, 230, 120) if full else (235, 190, 80),
+            -1,
+        )
 
 
 def scale_for_preview(frame):

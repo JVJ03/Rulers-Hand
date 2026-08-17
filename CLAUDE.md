@@ -47,8 +47,15 @@ cd extension; npm install; npm run compile
 # then F5 in VS Code → Extension Development Host
 ```
 
-There is no test suite and no CI. Don't add either unless asked — the feedback
-loop here is "wave at the camera and see what happens".
+```powershell
+# Check classify() + debounce against synthetic hands, no camera needed
+.venv\Scripts\python.exe watcher\selftest.py
+```
+
+No CI, and no test suite beyond `selftest.py` — don't add one unless asked. The
+feedback loop here is "wave at the camera and see what happens". `selftest.py`
+exists only because the classifier is the part that gets edited most, and
+catching a broken threshold without standing up is worth the one file.
 
 ## Camera
 
@@ -170,7 +177,9 @@ Never compare raw pixel distances — they change with how close you sit.
 Each milestone is tested by hand before the next one starts.
 
 - [x] **1. Webcam + landmarks.** Preview window, overlay, FPS. No classification.
-- [ ] **2. STOP_CHOP only.** `classify()` + hold-debounce. Prints to console.
+- [x] **2. STOP_CHOP only.** `classify()` + hold-debounce. Prints to console.
+      Right hand, flat open palm, held upright — Fletcher's "not quite my
+      tempo". Static pose, deliberately not a chopping motion.
 - [ ] **3. Extension skeleton.** Local server logs POSTs to an output channel.
       Confirm the Python → extension round-trip before wiring real commands.
 - [ ] **4. STOP_CHOP → Escape** into the Claude Code terminal, by name.
