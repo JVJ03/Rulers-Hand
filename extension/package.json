@@ -1,0 +1,58 @@
+{
+  "name": "claudelash",
+  "displayName": "Claudelash",
+  "description": "Receives hand gestures from the Python watcher and drives the Claude Code terminal.",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudelash.showLog",
+        "title": "Claudelash: Show Log"
+      },
+      {
+        "command": "claudelash.reloadGestureMap",
+        "title": "Claudelash: Reload Gesture Map"
+      },
+      {
+        "command": "claudelash.listTerminals",
+        "title": "Claudelash: List Open Terminals"
+      }
+    ],
+    "configuration": {
+      "title": "Claudelash",
+      "properties": {
+        "claudelash.port": {
+          "type": "number",
+          "default": 9247,
+          "description": "Localhost port the gesture watcher POSTs to. Bound to 127.0.0.1 only."
+        },
+        "claudelash.terminalName": {
+          "type": "string",
+          "default": "Claude Code",
+          "description": "Name of the terminal running Claude Code. Gestures only ever target this terminal, never whatever happens to be focused."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.5.0"
+  }
+}

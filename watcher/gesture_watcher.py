@@ -36,6 +36,7 @@ import features
 import gestures
 import overlay
 from debounce import HoldDebouncer
+from dispatch import Dispatcher
 
 MODEL_PATH = Path(__file__).parent / "models" / "hand_landmarker.task"
 
@@ -107,6 +108,7 @@ def main(argv: list[str] | None = None) -> int:
     start = time.perf_counter()
 
     debouncer = HoldDebouncer(config.HOLD_DURATION_MS, config.COOLDOWN_MS)
+    dispatcher = Dispatcher()
     last_fire_at = -1e9
     fire_count = 0
 
@@ -140,8 +142,8 @@ def main(argv: list[str] | None = None) -> int:
             if fired:
                 fire_count += 1
                 last_fire_at = now
-                # Milestone 2 stops here: no dispatch, just proof it triggers.
-                print(f"[{fire_count:3d}] FIRED  {fired}", flush=True)
+                dispatcher.send(fired, config.HOLD_DURATION_MS)
+                print(f"[{fire_count:3d}] FIRED  {fired}  -> {dispatcher.url}", flush=True)
 
             frame_times.append(time.perf_counter())
             fps = 0.0
@@ -168,7 +170,7 @@ def main(argv: list[str] | None = None) -> int:
                     now - last_fire_at,
                 )
 
-            overlay.draw_top_bar(view, fps, capture_size, len(hands))
+            overlay.draw_top_bar(view, fps, capture_size, len(hands), dispatcher.status)
             overlay.draw_footer(view, KEY_HINTS)
             cv2.imshow("Claudelash - gesture watcher", view)
 
@@ -180,8 +182,10 @@ def main(argv: list[str] | None = None) -> int:
             if key == ord("p"):
                 show_panels = not show_panels
 
+    dispatcher.close()
     cap.release()
     cv2.destroyAllWindows()
+    print(f"Sent {dispatcher.sent}, failed {dispatcher.failed}.")
     return 0
 
 

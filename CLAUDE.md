@@ -112,6 +112,21 @@ and USB SuperSpeed availability.
 - The git repo root is `Claudelash/`, one level *below* the VS Code workspace
   root (`CLaudelash/`). Files written to the workspace root are outside the repo.
 
+## The localhost link
+
+Watcher POSTs JSON `{"gesture": ..., "held_ms": ...}` to
+`http://127.0.0.1:9247/gesture`.
+
+**Use `127.0.0.1`, never `localhost`.** On Windows `localhost` resolves to
+`::1` (IPv6) first, and the extension's server binds IPv4 only — so
+`localhost` produces a connection-refused that looks identical to the
+extension not being loaded. This cost real debugging time once.
+
+`Dispatcher` posts from a worker thread with a 0.5 s timeout so a wedged
+server can never stall the capture loop, and treats "extension not running"
+as a normal state rather than an error — the watcher is often up before you
+press F5. The top bar shows the link status in red when posts are failing.
+
 ## Dependency pins
 
 - `mediapipe==0.10.35` — **uses the Tasks API, not `mp.solutions`.** The legacy
@@ -180,8 +195,8 @@ Each milestone is tested by hand before the next one starts.
 - [x] **2. STOP_CHOP only.** `classify()` + hold-debounce. Prints to console.
       Right hand, flat open palm, held upright — Fletcher's "not quite my
       tempo". Static pose, deliberately not a chopping motion.
-- [ ] **3. Extension skeleton.** Local server logs POSTs to an output channel.
-      Confirm the Python → extension round-trip before wiring real commands.
+- [x] **3. Extension skeleton.** Local server logs POSTs to an output channel.
+      Round-trip verified against a stub server (3/3 delivered).
 - [ ] **4. STOP_CHOP → Escape** into the Claude Code terminal, by name.
 - [ ] **5. ARMED/DISARMED hotkey** + on-screen state. Disarmed must fully ignore.
 - [ ] **6. FIST_HOLD, MODE_SWITCH, MODEL_POINT** — one at a time, tested alone.

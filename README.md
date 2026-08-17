@@ -94,13 +94,29 @@ palm size in pixels, then names the cheapest mode that still works.
 
 **2. Load the extension.**
 
-Open the `extension/` folder in VS Code and press `F5`. That launches an
-Extension Development Host window with the extension active. Open the
-**Output** panel and pick **Claudelash** from the dropdown to watch gestures
-arrive.
+Open **this repo folder** (not `extension/`) in VS Code and press `F5`. That
+compiles the extension and launches an Extension Development Host window with
+it active. In that new window, open the **Output** panel and pick
+**Claudelash** from the dropdown.
 
-The gesture → action mapping lives in [`extension/gesture-map.json`](extension/gesture-map.json)
-and is re-read at runtime, so you can retune it without recompiling.
+You should see:
+
+```text
+[10:14:02.113] Claudelash activated (milestone 3 — logging only, no terminal input)
+[10:14:02.119] Gesture map loaded: STOP_CHOP
+[10:14:02.124] Listening on http://127.0.0.1:9247/gesture
+```
+
+Hold up your right palm at the watcher and a line appears for each firing.
+
+The gesture → action mapping lives in [`extension/gesture-map.json`](extension/gesture-map.json).
+Edit it and run **Claudelash: Reload Gesture Map** from the command palette —
+no recompile needed.
+
+Useful command while setting up: **Claudelash: List Open Terminals** prints
+every terminal name and marks which one matches `claudelash.terminalName`.
+That's how milestone 4 finds the Claude Code terminal instead of firing
+keystrokes at whatever window happens to be focused.
 
 ## Tuning the classifier
 

@@ -47,7 +47,13 @@ def draw_hands(frame, hands_landmarks) -> None:
         hl.draw_hand(frame, landmarks)
 
 
-def draw_top_bar(frame, fps: float, capture_size: tuple[int, int], hand_count: int) -> None:
+def draw_top_bar(
+    frame,
+    fps: float,
+    capture_size: tuple[int, int],
+    hand_count: int,
+    link_status: str = "",
+) -> None:
     w = frame.shape[1]
     _panel(frame, 0, 0, w, 34)
     cw, ch = capture_size
@@ -55,6 +61,11 @@ def draw_top_bar(frame, fps: float, capture_size: tuple[int, int], hand_count: i
     _text(frame, f"{fps:5.1f} fps", 130, 22)
     _text(frame, f"{cw}x{ch}", 215, 22, color=(170, 170, 178))
     _text(frame, f"hands {hand_count}", 320, 22, color=(170, 170, 178))
+    if link_status:
+        # Red when the extension isn't reachable — that's the usual reason a
+        # gesture fires but nothing happens in VS Code.
+        bad = "not running" in link_status or "failed" in link_status
+        _text(frame, link_status, 425, 22, color=(90, 90, 235) if bad else (150, 200, 150))
 
 
 def draw_footer(frame, keys: str) -> None:

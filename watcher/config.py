@@ -38,7 +38,10 @@ MIN_PRESENCE_CONFIDENCE = 0.5  # how sure it must be the hand is still there
 MIN_TRACKING_CONFIDENCE = 0.5  # below this it re-runs full detection
 
 # --- Dispatch (milestone 3+) ------------------------------------------------
-SERVER_URL = "http://localhost:9247/gesture"
+# 127.0.0.1, NOT "localhost". On Windows "localhost" resolves to ::1 (IPv6)
+# first, while the extension's server binds IPv4 only — so "localhost" gives a
+# connection-refused that looks exactly like the extension not running.
+SERVER_URL = "http://127.0.0.1:9247/gesture"
 HOLD_DURATION_MS = 400  # how long a gesture must persist before it fires
 COOLDOWN_MS = 1200  # ignore repeat fires of the same gesture within this window
 

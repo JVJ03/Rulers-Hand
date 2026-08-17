@@ -1,0 +1,17 @@
+{
+  "_comment": [
+    "Gesture name -> what it should do. Edit this and run the",
+    "'Claudelash: Reload Gesture Map' command; no recompile needed.",
+    "Gesture names must match the constants in watcher/gestures.py.",
+    "",
+    "Milestone 3 only LOGS the action it would take. Nothing is sent to any",
+    "terminal yet. Actions get wired up one at a time from milestone 4."
+  ],
+  "gestures": {
+    "STOP_CHOP": {
+      "action": "sendKey",
+      "key": "escape",
+      "description": "Interrupt Claude Code"
+    }
+  }
+}
