@@ -24,28 +24,11 @@ import mediapipe as mp
 from mediapipe.tasks import python as mp_tasks
 from mediapipe.tasks.python import vision
 
+import camera
 import config
 import hand_landmarks as hl
 
 MODEL_PATH = Path(__file__).parent / "models" / "hand_landmarker.task"
-
-
-def open_camera(index: int) -> cv2.VideoCapture:
-    """Open the webcam.
-
-    CAP_DSHOW matters on Windows: the default MSMF backend can take 5-10s to
-    open a camera and sometimes refuses to honour a resolution hint.
-    """
-    cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-    if not cap.isOpened():
-        raise SystemExit(
-            f"Could not open camera index {index}.\n"
-            f"Try --camera 1, and check nothing else is holding the webcam "
-            f"(Teams is the usual culprit)."
-        )
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.FRAME_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.FRAME_HEIGHT)
-    return cap
 
 
 def create_landmarker() -> vision.HandLandmarker:
@@ -94,13 +77,18 @@ def draw_hud(frame, fps: float, hand_count: int, overlay_on: bool) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Claudelash gesture watcher (milestone 1)")
-    parser.add_argument("--camera", type=int, default=config.CAMERA_INDEX)
+    parser.add_argument(
+        "--camera",
+        type=int,
+        default=None,
+        help="pin a camera index, overriding CAMERA_NAME in config.py",
+    )
     args = parser.parse_args(argv)
 
     print(f"mediapipe {mp.__version__} | opencv {cv2.__version__}")
     print("Opening camera... (first frame can take a second)")
 
-    cap = open_camera(args.camera)
+    cap = camera.open_camera(args.camera)
     frame_times: deque[float] = deque(maxlen=30)
     overlay_on = True
     start = time.perf_counter()

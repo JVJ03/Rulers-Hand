@@ -5,9 +5,15 @@ main loop to change the feel of the thing.
 """
 
 # --- Camera -----------------------------------------------------------------
-CAMERA_INDEX = 0
-FRAME_WIDTH = 960
-FRAME_HEIGHT = 540
+# Picked by name, because DirectShow indices shuffle when you dock/undock.
+# Case-insensitive substring match. Run `python watcher/list_cameras.py` to see
+# what's attached.
+CAMERA_NAME = "DELL Display 4MP Webcam"
+CAMERA_INDEX = None  # set to an int to ignore CAMERA_NAME and pin an index
+
+FRAME_WIDTH = 1280
+FRAME_HEIGHT = 720
+TARGET_FPS = 30  # must be set explicitly or the driver may pick its slowest mode
 MIRROR_PREVIEW = True  # flip horizontally so it behaves like a mirror
 
 # --- MediaPipe Hands --------------------------------------------------------
