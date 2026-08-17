@@ -1,0 +1,20 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Node / VS Code extension
+node_modules/
+extension/out/
+extension/*.vsix
+.vscode-test/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Local overrides — copy the .example files and edit those
+watcher/local_config.py
+extension/gesture-map.local.json

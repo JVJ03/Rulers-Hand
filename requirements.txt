@@ -1,0 +1,8 @@
+# Pinned deliberately — see CLAUDE.md "Dependency pins" for why.
+#
+# NOTE: do NOT add opencv-python. mediapipe depends on opencv-contrib-python,
+# and installing both puts two packages in the same `cv2` namespace.
+mediapipe==0.10.35
+opencv-contrib-python==4.12.0.88
+requests==2.32.5
+keyboard==0.13.5
