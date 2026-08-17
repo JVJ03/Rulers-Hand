@@ -1,7 +1,7 @@
 """Gesture watcher — MILESTONE 2.
 
 Shows the webcam with hand landmarks and a live readout of what the program
-thinks your hands are doing, classifies STOP_CHOP, and prints to the console
+thinks your hands are doing, classifies NOT_QUITE_MY_TEMPO, and prints to the console
 when it fires after being held.
 
 Nothing is dispatched anywhere yet — no HTTP, no VS Code, no keystrokes. The
@@ -137,8 +137,7 @@ def main(argv: list[str] | None = None) -> int:
             ]
 
             now = time.monotonic()
-            gesture = gestures.classify(hand_features)
-            fired = debouncer.update(gesture, now)
+            shape, fired = gestures.update(hand_features, now)
             if fired:
                 fire_count += 1
                 last_fire_at = now
@@ -165,8 +164,8 @@ def main(argv: list[str] | None = None) -> int:
                 overlay.draw_gesture_panel(
                     view,
                     hand_features,
-                    gesture,
-                    debouncer.progress(now),
+                    shape,
+                    gestures.SEQUENCES,
                     now - last_fire_at,
                 )
 

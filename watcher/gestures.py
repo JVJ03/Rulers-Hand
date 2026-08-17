@@ -1,49 +1,95 @@
 """The gesture classifier. This is the file you'll tinker with most.
 
-Adding a gesture is meant to be two small edits:
+There are two layers, and it matters which one you're editing.
 
-  1. write a `_is_<name>` function that answers one yes/no question about a
-     hand, reading the named facts from `features.HandFeatures`
-  2. add a line to `classify()`
+**Shapes** are what a hand looks like in one frame — an open palm, a fist.
+`classify_shape()` names them. Adding one is a `_is_<name>` predicate reading
+the named facts on `features.HandFeatures`, plus a line in `classify_shape()`.
 
-Keep each check readable in one breath. If a check needs a geometric fact that
-doesn't exist yet — palm facing, finger angle, whatever — add it as a field in
-`features.py` rather than doing trigonometry here. That way every gesture gets
-it, and this file stays a list of plain statements about hand shape.
+**Gestures** are what you actually mean, and some of them span time.
+"Not quite my tempo" is an open palm circling, then a fist — no single frame
+contains it. Those live in SEQUENCES below as an ordered list of shapes.
 
-Order matters in `classify()`: the first match wins. Put the most specific
-gestures first so a loose one doesn't shadow them.
+If a gesture needs a geometric fact that doesn't exist — palm facing, finger
+angle, whatever — add it as a field in `features.py` rather than doing
+trigonometry here. Then every gesture gets it and this file stays a list of
+plain statements about hands.
 """
 
 from __future__ import annotations
 
+import config
 from features import HandFeatures
+from sequences import SequenceDetector
 
-# Gesture names. These strings are the contract with the VS Code extension —
-# they're what gets POSTed, and what gesture-map.json keys off. Don't rename
-# one without changing the map too.
-STOP_CHOP = "STOP_CHOP"
+# --- Shapes -----------------------------------------------------------------
+
+OPEN_PALM = "OPEN_PALM"
+FIST = "FIST"
 
 
-def _is_stop_chop(f: HandFeatures) -> bool:
-    """Fletcher's "stop, not quite my tempo": right hand up, palm open, flat.
+def _is_open_palm(f: HandFeatures) -> bool:
+    """All four fingers out and spread apart.
 
-    Deliberately loose. It's the interrupt, so it should fire when you mean it
-    even if your hand is a bit crooked — `is_upright` allows 30 degrees of tilt
-    either way. The thumb is ignored entirely; whether it sticks out or tucks
-    varies per person and policing it only causes misses.
+    Requiring spread is what separates a deliberate open palm from a hand that
+    merely has its fingers straight. Measured from the reference clip: the
+    open-palm phase sat at 0.32-0.36, the fist at 0.09-0.14.
     """
-    return f.handedness == "Right" and f.is_flat_palm and f.is_upright
+    return f.is_flat_palm and f.spread >= config.OPEN_PALM_MIN_SPREAD
 
 
-def classify(hand_features: list[HandFeatures]) -> str | None:
-    """Name the gesture currently being made, or None.
+def _is_fist(f: HandFeatures) -> bool:
+    """All four fingers curled. The thumb is ignored — it rides outside a fist
+    as often as inside, and checking it only causes misses."""
+    return f.is_fist
 
-    Takes every visible hand, because later gestures (TWO_HAND_SLAM) need to
-    look at more than one at a time.
+
+def classify_shape(hand_features: list[HandFeatures]) -> str | None:
+    """Name the shape of the hand right now, or None.
+
+    Only the first hand is considered. Two-handed gestures will need their own
+    path here; that's milestone 7's problem.
     """
-    for f in hand_features:
-        if _is_stop_chop(f):
-            return STOP_CHOP
+    if not hand_features:
+        return None
+    f = hand_features[0]
 
+    if config.REQUIRE_HANDEDNESS and f.handedness != config.GESTURE_HAND:
+        return None
+
+    if _is_open_palm(f):
+        return OPEN_PALM
+    if _is_fist(f):
+        return FIST
     return None
+
+
+# --- Gestures ---------------------------------------------------------------
+
+NOT_QUITE_MY_TEMPO = "NOT_QUITE_MY_TEMPO"
+
+# Ordered shapes that make up each gesture. Intervening shapes are ignored and
+# frames with no hand don't reset progress — see sequences.py for why.
+SEQUENCES = [
+    SequenceDetector(
+        name=NOT_QUITE_MY_TEMPO,
+        steps=[OPEN_PALM, FIST],
+        window_ms=config.SEQUENCE_WINDOW_MS,
+        cooldown_ms=config.COOLDOWN_MS,
+    ),
+]
+
+
+def update(hand_features: list[HandFeatures], now: float) -> tuple[str | None, str | None]:
+    """Advance every sequence by one frame.
+
+    Returns `(shape_now, fired_gesture)` — the shape so the overlay can show
+    what's being seen, and the gesture name on the frame it completes.
+    """
+    shape = classify_shape(hand_features)
+    fired = None
+    for sequence in SEQUENCES:
+        result = sequence.update(shape, now)
+        if result and not fired:
+            fired = result
+    return shape, fired

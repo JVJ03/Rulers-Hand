@@ -33,7 +33,16 @@ PREVIEW_SCALE = 0.5
 
 # --- MediaPipe Hands --------------------------------------------------------
 MAX_HANDS = 2  # 2 from the start so TWO_HAND_SLAM works later without a rewrite
-MIN_DETECTION_CONFIDENCE = 0.7  # how sure it must be to find a hand at all
+# Detection confidence was swept against the reference clip, which contains
+# three repetitions — two slow, one fast:
+#
+#   0.7  ->  2 of 3   (lost the fast rep entirely to motion blur)
+#   0.5  ->  3 of 3, no false positives   <- here
+#   0.3  ->  3 of 3
+#   0.2  ->  3 of 3 plus a false positive
+#
+# Below 0.5 buys nothing and eventually starts inventing hands.
+MIN_DETECTION_CONFIDENCE = 0.5  # how sure it must be to find a hand at all
 MIN_PRESENCE_CONFIDENCE = 0.5  # how sure it must be the hand is still there
 MIN_TRACKING_CONFIDENCE = 0.5  # below this it re-runs full detection
 
@@ -42,15 +51,44 @@ MIN_TRACKING_CONFIDENCE = 0.5  # below this it re-runs full detection
 # first, while the extension's server binds IPv4 only — so "localhost" gives a
 # connection-refused that looks exactly like the extension not running.
 SERVER_URL = "http://127.0.0.1:9247/gesture"
-HOLD_DURATION_MS = 400  # how long a gesture must persist before it fires
+HOLD_DURATION_MS = 400  # how long a *static* gesture must persist before firing
 COOLDOWN_MS = 1200  # ignore repeat fires of the same gesture within this window
+
+# --- Gesture shapes and sequences -------------------------------------------
+# How far apart the fingertips must be to count as an open palm, in units of
+# hand size. From the reference clip: open palm measured 0.32-0.36, fist
+# 0.09-0.14, so 0.22 sits comfortably between them.
+OPEN_PALM_MIN_SPREAD = 0.22
+
+# How long a whole sequence may take, from its first shape to its last.
+# The reference clip ran 0.72-1.48s of open palm, then ~0.24s to close, so
+# 2500ms leaves room for a slow, deliberate performance.
+SEQUENCE_WINDOW_MS = 2500
+
+# Restrict gestures to one hand? MediaPipe's handedness proved unreliable
+# during fast motion in the reference clip — it reported both Left and Right
+# for the same hand across the same clip. Off by default because of that; turn
+# it on if your other hand keeps triggering things.
+REQUIRE_HANDEDNESS = False
+GESTURE_HAND = "Right"
+
+# --- Finger extension -------------------------------------------------------
+# How straight a finger must be, in degrees at its middle joint, to count as
+# extended. 180 is dead straight. Lower these if fingers you're holding out
+# read as curled; raise them if lazily-bent fingers read as extended.
+#
+# The thumb gets its own, lower, threshold — it never straightens as fully as
+# the fingers, and using one number for all five is what made a relaxed thumb
+# read as permanently extended.
+FINGER_STRAIGHT_DEG = 155.0
+THUMB_STRAIGHT_DEG = 140.0
 
 # --- Recording (watcher/record.py) ------------------------------------------
 # Number key -> label. Record the gesture you *want*, and also the shapes it
 # currently fires on by mistake — the difference between them is what the
 # classifier rule gets built from. Add or rename freely.
 RECORD_LABELS = {
-    "1": "STOP_CHOP",  # the real gesture you mean
+    "1": "NOT_QUITE_MY_TEMPO",  # the real gesture you mean
     "2": "OPEN_HAND",  # plain open palm — currently a false positive
     "3": "RELAXED",  # hand just resting in frame, doing nothing
     "4": "SPARE_A",

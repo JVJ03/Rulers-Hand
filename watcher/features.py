@@ -18,6 +18,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+import config
 import hand_landmarks as hl
 
 # Finger name order used everywhere in this file and the overlay.
@@ -34,8 +35,32 @@ _TIP_AND_PIP = (
 )
 
 
+# Joints used to measure how bent each finger is: (base, middle, tip). The
+# angle at the middle joint is ~180 degrees for a straight finger and drops
+# sharply as it curls.
+_CURL_JOINTS = (
+    (hl.THUMB_CMC, hl.THUMB_MCP, hl.THUMB_TIP),
+    (hl.INDEX_MCP, hl.INDEX_PIP, hl.INDEX_TIP),
+    (hl.MIDDLE_MCP, hl.MIDDLE_PIP, hl.MIDDLE_TIP),
+    (hl.RING_MCP, hl.RING_PIP, hl.RING_TIP),
+    (hl.PINKY_MCP, hl.PINKY_PIP, hl.PINKY_TIP),
+)
+
+
 def _dist(a, b) -> float:
     return math.hypot(a.x - b.x, a.y - b.y)
+
+
+def _angle_at(base, middle, tip) -> float:
+    """Interior angle at `middle`, in degrees. 180 = perfectly straight."""
+    ax, ay = base.x - middle.x, base.y - middle.y
+    bx, by = tip.x - middle.x, tip.y - middle.y
+    na = math.hypot(ax, ay)
+    nb = math.hypot(bx, by)
+    if na < 1e-9 or nb < 1e-9:
+        return 180.0
+    cos = max(-1.0, min(1.0, (ax * bx + ay * by) / (na * nb)))
+    return math.degrees(math.acos(cos))
 
 
 @dataclass(frozen=True)
@@ -44,6 +69,7 @@ class HandFeatures:
 
     handedness: str  # "Left" or "Right", as you see it in the mirrored preview
     extended: tuple[bool, ...]  # one per finger, in FINGER_NAMES order
+    straightness: tuple[float, ...]  # per finger, degrees; 180 = dead straight
     scale: float  # wrist -> middle knuckle, in normalised units
     tilt_deg: float  # 0 = fingers point straight up, +/-180 = straight down
     spread: float  # mean fingertip gap, in units of `scale`
@@ -87,11 +113,27 @@ def extract(landmarks, handedness: str) -> HandFeatures:
     # zero so a bad frame can't produce infinities downstream.
     scale = max(_dist(wrist, middle_mcp), 1e-6)
 
-    # A finger is extended when its tip is further from the wrist than its
-    # middle joint. Comparing distances rather than y-coordinates means this
-    # still works when the hand is rotated or upside down.
+    # How straight each finger is, as the angle at its middle joint.
+    straightness = tuple(
+        _angle_at(landmarks[a], landmarks[b], landmarks[c]) for a, b, c in _CURL_JOINTS
+    )
+
+    # A finger counts as extended when it's both straight *and* reaching away
+    # from the wrist.
+    #
+    # The distance test alone isn't enough: the thumb tip is almost always
+    # further from the wrist than its IP joint even when tucked, so distance
+    # alone reports the thumb extended nearly all the time. The angle test
+    # alone isn't enough either — a finger folded flat across the palm stays
+    # fairly straight. Requiring both fixes each one's blind spot.
+    #
+    # The thumb gets a lower bar because it never straightens as fully as the
+    # fingers do.
+    thresholds = (config.THUMB_STRAIGHT_DEG,) + (config.FINGER_STRAIGHT_DEG,) * 4
     extended = tuple(
-        _dist(wrist, landmarks[tip]) > _dist(wrist, landmarks[pip]) for tip, pip in _TIP_AND_PIP
+        straightness[i] >= thresholds[i]
+        and _dist(wrist, landmarks[tip]) > _dist(wrist, landmarks[pip])
+        for i, (tip, pip) in enumerate(_TIP_AND_PIP)
     )
 
     # Tilt of the wrist -> knuckle vector. Screen y grows downward, so negate it
@@ -111,6 +153,7 @@ def extract(landmarks, handedness: str) -> HandFeatures:
     return HandFeatures(
         handedness=handedness,
         extended=extended,
+        straightness=straightness,
         scale=scale,
         tilt_deg=tilt_deg,
         spread=spread,

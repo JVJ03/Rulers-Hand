@@ -192,12 +192,12 @@ Never compare raw pixel distances — they change with how close you sit.
 Each milestone is tested by hand before the next one starts.
 
 - [x] **1. Webcam + landmarks.** Preview window, overlay, FPS. No classification.
-- [x] **2. STOP_CHOP only.** `classify()` + hold-debounce. Prints to console.
+- [x] **2. NOT_QUITE_MY_TEMPO only.** `classify()` + hold-debounce. Prints to console.
       Right hand, flat open palm, held upright — Fletcher's "not quite my
       tempo". Static pose, deliberately not a chopping motion.
 - [x] **3. Extension skeleton.** Local server logs POSTs to an output channel.
       Round-trip verified against a stub server (3/3 delivered).
-- [ ] **4. STOP_CHOP → Escape** into the Claude Code terminal, by name.
+- [ ] **4. NOT_QUITE_MY_TEMPO → Escape** into the Claude Code terminal, by name.
 - [ ] **5. ARMED/DISARMED hotkey** + on-screen state. Disarmed must fully ignore.
 - [ ] **6. FIST_HOLD, MODE_SWITCH, MODEL_POINT** — one at a time, tested alone.
 - [ ] **7. TWO_HAND_SLAM** last, with extra confirmation. Destructive.

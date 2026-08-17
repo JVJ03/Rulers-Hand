@@ -21,7 +21,7 @@ webcam ──▶ OpenCV ──▶ MediaPipe Hands ──▶ classify() ──▶
 
 | Gesture | Action | Status |
 | --- | --- | --- |
-| `STOP_CHOP` | Escape — interrupt Claude Code | milestone 2–4 |
+| `NOT_QUITE_MY_TEMPO` | Escape — interrupt Claude Code | milestone 2–4 |
 | `FIST_HOLD` | pause (behaviour TBD) | milestone 6 |
 | `MODE_SWITCH` | Shift+Tab — cycle mode | milestone 6 |
 | `MODEL_POINT` | type `/model` + Enter | milestone 6 |
@@ -103,7 +103,7 @@ You should see:
 
 ```text
 [10:14:02.113] Claudelash activated (milestone 3 — logging only, no terminal input)
-[10:14:02.119] Gesture map loaded: STOP_CHOP
+[10:14:02.119] Gesture map loaded: NOT_QUITE_MY_TEMPO
 [10:14:02.124] Listening on http://127.0.0.1:9247/gesture
 ```
 

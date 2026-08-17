@@ -124,43 +124,48 @@ def _shape_summary(features_list: list[HandFeatures]) -> tuple[str, tuple[int, i
 def draw_gesture_panel(
     frame,
     features_list: list[HandFeatures],
-    gesture: str | None,
-    progress: float,
+    shape: str | None,
+    sequences,
     fired_ago: float,
 ) -> None:
-    """Top-right: what gesture is recognised, and how close it is to firing.
+    """Top-right: the shape being seen now, and how far each sequence has got.
 
     `fired_ago` is seconds since the last firing — used to flash the panel so a
     fire is visible even though it only lasts one frame.
     """
     w = frame.shape[1]
-    x, y, pw, ph = w - 336, 46, 324, 70
-    _panel(frame, x, y, pw, ph)
+    x, y = w - 336, 46
+    ph = 56 + len(sequences) * 34
+    _panel(frame, x, y, 324, ph)
 
-    if gesture:
-        label, colour = gesture, (90, 230, 120)
+    if shape:
+        label, colour = shape, (90, 230, 120)
     else:
         label, colour = _shape_summary(features_list)
 
-    # Flash on a recent fire, so you can see it happened.
-    if fired_ago < 0.4:
-        cv2.rectangle(frame, (x, y), (x + pw, y + ph), (90, 230, 120), 2, cv2.LINE_AA)
+    if fired_ago < 0.5:
+        cv2.rectangle(frame, (x, y), (x + 324, y + ph), (90, 230, 120), 2, cv2.LINE_AA)
 
-    _text(frame, label, x + 14, y + 30, scale=0.62, color=colour, weight=2)
+    _text(frame, label, x + 14, y + 30, scale=0.6, color=colour, weight=2)
 
-    # Charge bar. Fills left to right while a gesture is being held.
-    bar_x, bar_y, bar_w, bar_h = x + 14, y + 44, pw - 28, 10
-    cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h), (70, 70, 78), 1)
-    if progress > 0:
-        fill = int(bar_w * progress)
-        full = progress >= 1.0
-        cv2.rectangle(
-            frame,
-            (bar_x + 1, bar_y + 1),
-            (bar_x + max(1, fill) - 1, bar_y + bar_h - 1),
-            (90, 230, 120) if full else (235, 190, 80),
-            -1,
-        )
+    # One row per sequence: its name, then a pip per step. Pips light up as
+    # each shape in the sequence is seen.
+    for i, seq in enumerate(sequences):
+        row_y = y + 54 + i * 34
+        done = seq.matched
+        name_colour = (215, 215, 222) if done == 0 else (235, 190, 80)
+        _text(frame, seq.name, x + 14, row_y + 10, scale=0.44, color=name_colour)
+
+        for step_i, step in enumerate(seq.steps):
+            cx = x + 190 + step_i * 30
+            lit = step_i < done
+            cv2.circle(frame, (cx, row_y + 5), 8, (90, 230, 120) if lit else (75, 75, 84),
+                       -1 if lit else 1, cv2.LINE_AA)
+            _text(frame, step[0], cx - 4, row_y + 10, scale=0.38,
+                  color=(20, 20, 20) if lit else (150, 150, 158))
+            if step_i < len(seq.steps) - 1:
+                cv2.line(frame, (cx + 9, row_y + 5), (cx + 21, row_y + 5),
+                         (100, 100, 110), 1, cv2.LINE_AA)
 
 
 def scale_for_preview(frame):

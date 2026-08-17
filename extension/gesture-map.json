@@ -8,7 +8,7 @@
     "terminal yet. Actions get wired up one at a time from milestone 4."
   ],
   "gestures": {
-    "STOP_CHOP": {
+    "NOT_QUITE_MY_TEMPO": {
       "action": "sendKey",
       "key": "escape",
       "description": "Interrupt Claude Code"
