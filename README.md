@@ -77,12 +77,20 @@ attached, or if the watcher can't find your camera:
 That lists every device by name and reports which ones actually deliver frames.
 Pass `--camera N` to the watcher to override the name lookup for one run.
 
-Runs at the Dell webcam's native maximum, **2560x1440** — measured **17.5 fps
-end-to-end** (6 ms capture, 51 ms inference). The preview window is scaled down
-for display via `PREVIEW_SCALE`; inference always uses the full frame.
+Runs at **1920x1080** — measured **~25 fps end-to-end** (4 ms capture, 37 ms
+inference). That's deliberately below the camera's 2560x1440 maximum: 1440p
+costs a third of the frame rate for detail MediaPipe downscales away before it
+runs the model. The preview window is scaled down for display via
+`PREVIEW_SCALE`; inference always uses the full frame.
 
-If that ever feels laggy, drop `FRAME_WIDTH`/`FRAME_HEIGHT` to 1920x1080 in
-`config.py` and you get roughly 10 fps back.
+If you move the camera or change where you sit, re-check with:
+
+```powershell
+.venv\Scripts\python.exe watcher\tune_resolution.py
+```
+
+It samples every mode with your hand in frame and reports detection rate and
+palm size in pixels, then names the cheapest mode that still works.
 
 **2. Load the extension.**
 

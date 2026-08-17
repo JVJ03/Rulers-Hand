@@ -60,23 +60,25 @@ the Dell was index 1, then index 0 after a reconnect.
 The laptop's `Integrated Camera` is effectively blind while docked (measured
 mean brightness 2.4/255, lid closed). It only exists as a fallback.
 
-Running at the sensor's native ceiling, **2560x1440** — anything higher falls
-back to it. Measured resolution ladder on the Dell, MJPG, `CAP_PROP_FPS=30`:
+Running at **1920x1080**, which is the knee of the curve — *not* the sensor's
+2560x1440 ceiling. Measured on the Dell, MJPG, `CAP_PROP_FPS=30`:
 
 | Mode | capture | inference | end-to-end |
 | --- | --- | --- | --- |
-| 640x480 | 19.9 ms | 14.1 ms | 29.4 fps |
-| 1280x720 | 8.6 ms | 26.9 ms | 28.2 fps |
-| 1920x1080 | 4.2 ms | 32.7 ms | 27.1 fps |
-| **2560x1440** | 6.2 ms | 50.9 ms | **17.5 fps** |
+| 640x480 | 19.9 ms | 14.1 ms | 29.5 fps |
+| 1280x720 | 8.6 ms | 26.9 ms | 29.4 fps |
+| **1920x1080** | 3.9 ms | 37.2 ms | **24-28 fps** |
+| 2560x1440 | 6.2 ms | 50.9 ms | 19.3 fps |
 
-Cost is entirely in inference, not capture. If gestures ever feel laggy, drop
-`FRAME_WIDTH/HEIGHT` to 1920x1080 for ~10 fps back at little practical loss —
-MediaPipe downscales internally anyway, so extra pixels mainly help detect
-hands that are small in frame (i.e. further from the camera).
+Cost is entirely in inference, not capture. Going 720p -> 1080p is nearly free;
+going 1080p -> 1440p costs a third of the frame rate. MediaPipe's landmark
+model runs on a **224px input** and downscales whatever it's handed, so 1440p
+buys detail the model discards before it looks at the frame. Extra resolution
+only helps when the hand is genuinely small in frame — i.e. sitting further
+back — so re-run `watcher/tune_resolution.py` if the desk setup changes.
 
-At 17.5 fps a 400 ms hold still gets ~7 frames to confirm. **Threaded capture
-is not needed**; don't add that complexity unless the feel demands it.
+At ~25 fps a 400 ms hold gets ~10 frames to confirm. **Threaded capture is not
+needed**; don't add that complexity unless the feel demands it.
 
 `PREVIEW_SCALE` shrinks the preview window only — inference always runs on the
 full-resolution frame.
