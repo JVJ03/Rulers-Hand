@@ -129,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         aspect=capture_size[0] / max(1, capture_size[1]),
     )
     last_fire_at = -1e9
+    last_fired_name: str | None = None
     fire_count = 0
 
     print(f"Ready at {capture_size[0]}x{capture_size[1]}. {KEY_HINTS}")
@@ -159,6 +160,7 @@ def main(argv: list[str] | None = None) -> int:
                 tracker.reset()  # start the next circle from scratch
                 fire_count += 1
                 last_fire_at = now
+                last_fired_name = fired
                 dispatcher.send(fired, config.HOLD_DURATION_MS)
                 print(f"[{fire_count:3d}] FIRED  {fired}  -> {dispatcher.url}", flush=True)
 
@@ -175,6 +177,7 @@ def main(argv: list[str] | None = None) -> int:
             view = overlay.scale_for_preview(frame)
 
             if show_landmarks:
+                overlay.draw_motion_trail(view, tracker)
                 overlay.draw_hands(view, hands)
             if show_panels:
                 for slot, feature in enumerate(hand_features[:2]):
@@ -188,6 +191,7 @@ def main(argv: list[str] | None = None) -> int:
                     tracker,
                 )
 
+            overlay.draw_last_fired(view, last_fired_name, now - last_fire_at, fire_count)
             overlay.draw_top_bar(view, fps, capture_size, len(hands), dispatcher.status)
             overlay.draw_footer(view, KEY_HINTS)
             cv2.imshow("Claudelash - gesture watcher", view)

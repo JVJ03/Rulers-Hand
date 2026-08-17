@@ -62,10 +62,67 @@ def draw_top_bar(
     _text(frame, f"{cw}x{ch}", 215, 22, color=(170, 170, 178))
     _text(frame, f"hands {hand_count}", 320, 22, color=(170, 170, 178))
     if link_status:
-        # Red when the extension isn't reachable — that's the usual reason a
-        # gesture fires but nothing happens in VS Code.
+        # Labelled "VS Code" on purpose. This is only about *delivery* to the
+        # extension — recognition is reported separately, in the last-fired
+        # banner. A red link here does not mean the gesture wasn't recognised.
         bad = "not running" in link_status or "failed" in link_status
-        _text(frame, link_status, 425, 22, color=(90, 90, 235) if bad else (150, 200, 150))
+        _text(frame, f"VS Code: {link_status}", 425, 22,
+              color=(110, 110, 235) if bad else (150, 200, 150))
+
+
+def draw_motion_trail(frame, tracker) -> None:
+    """Draw where the palm has been, so you can see the circle being traced.
+
+    Oldest points are dim and thin, newest bright and thick, which makes the
+    direction of travel obvious. The cross marks the centroid the swept angle
+    is measured around — if that isn't near the middle of your loop, the
+    circle isn't as round as it feels.
+    """
+    pts = tracker.points
+    if len(pts) < 2:
+        return
+    h, w = frame.shape[:2]
+    pixels = [(int(x * w), int(y * h)) for x, y in pts]
+
+    n = len(pixels)
+    for i, (a, b) in enumerate(zip(pixels, pixels[1:])):
+        age = i / max(1, n - 1)  # 0 = oldest, 1 = newest
+        colour = (int(90 + 60 * age), int(120 + 110 * age), int(235 - 80 * age))
+        cv2.line(frame, a, b, colour, 1 + int(age * 2), cv2.LINE_AA)
+
+    cv2.circle(frame, pixels[-1], 6, (120, 230, 255), -1, cv2.LINE_AA)
+
+    cx = int(sum(p[0] for p in pixels) / n)
+    cy = int(sum(p[1] for p in pixels) / n)
+    cv2.drawMarker(frame, (cx, cy), (200, 200, 210), cv2.MARKER_CROSS, 14, 1, cv2.LINE_AA)
+
+
+def draw_last_fired(frame, name: str | None, seconds_ago: float, count: int) -> None:
+    """Bottom banner: the most recent gesture actually recognised.
+
+    Separate from the VS Code link status in the top bar on purpose. This says
+    "the classifier saw your gesture"; that says "the extension received it".
+    They fail independently and conflating them is confusing.
+    """
+    h, w = frame.shape[:2]
+    x, y, pw, ph = 12, h - 92, 420, 56
+    _panel(frame, x, y, pw, ph)
+
+    if name is None:
+        _text(frame, "LAST GESTURE", x + 14, y + 22, scale=0.44, color=(150, 150, 158))
+        _text(frame, "none yet", x + 14, y + 44, scale=0.6, color=(150, 150, 158))
+        return
+
+    fresh = seconds_ago < 1.5
+    colour = (90, 230, 120) if fresh else (215, 215, 222)
+    if fresh:
+        cv2.rectangle(frame, (x, y), (x + pw, y + ph), (90, 230, 120), 2, cv2.LINE_AA)
+
+    _text(frame, f"LAST GESTURE   #{count}", x + 14, y + 22, scale=0.44,
+          color=(120, 200, 255))
+    _text(frame, name, x + 14, y + 45, scale=0.66, color=colour, weight=2)
+    ago = "just now" if seconds_ago < 1.0 else f"{seconds_ago:.0f}s ago"
+    _text(frame, ago, x + pw - 96, y + 45, scale=0.46, color=(170, 170, 178))
 
 
 def draw_footer(frame, keys: str) -> None:

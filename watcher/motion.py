@@ -34,7 +34,9 @@ class MotionTracker:
             # Don't clear the history — a hand lost to motion blur for a few
             # frames shouldn't erase the loop it was halfway through.
             return
-        self._points.append((centre[0] * self.aspect, centre[1], now))
+        # Stored raw, in image coordinates, so the trail can be drawn directly.
+        # Aspect correction is applied inside the measurements instead.
+        self._points.append((centre[0], centre[1], now))
 
     def reset(self) -> None:
         self._points.clear()
@@ -44,21 +46,29 @@ class MotionTracker:
         return len(self._points)
 
     @property
+    def points(self) -> list[tuple[float, float]]:
+        """Path so far, oldest first, in image coords — for drawing the trail."""
+        return [(x, y) for x, y, _ in self._points]
+
+    def _corrected(self) -> list[tuple[float, float]]:
+        """Points with x scaled by aspect, so a real circle measures as one."""
+        return [(x * self.aspect, y) for x, y, _ in self._points]
+
+    @property
     def path_length(self) -> float:
         """Total distance travelled, in aspect-corrected image units."""
-        total = 0.0
-        for (x0, y0, _), (x1, y1, _) in zip(self._points, list(self._points)[1:]):
-            total += math.hypot(x1 - x0, y1 - y0)
-        return total
+        pts = self._corrected()
+        return sum(
+            math.hypot(x1 - x0, y1 - y0) for (x0, y0), (x1, y1) in zip(pts, pts[1:])
+        )
 
     @property
     def displacement(self) -> float:
         """Straight-line distance from the oldest sample to the newest."""
-        if len(self._points) < 2:
+        pts = self._corrected()
+        if len(pts) < 2:
             return 0.0
-        x0, y0, _ = self._points[0]
-        x1, y1, _ = self._points[-1]
-        return math.hypot(x1 - x0, y1 - y0)
+        return math.hypot(pts[-1][0] - pts[0][0], pts[-1][1] - pts[0][1])
 
     @property
     def swept_deg(self) -> float:
@@ -67,14 +77,15 @@ class MotionTracker:
         Sign gives direction: positive one way round, negative the other. Take
         `abs()` unless you actually care which way the circle went.
         """
-        if len(self._points) < 5:
+        pts = self._corrected()
+        if len(pts) < 5:
             return 0.0
-        cx = sum(p[0] for p in self._points) / len(self._points)
-        cy = sum(p[1] for p in self._points) / len(self._points)
+        cx = sum(p[0] for p in pts) / len(pts)
+        cy = sum(p[1] for p in pts) / len(pts)
 
         total = 0.0
         previous: float | None = None
-        for x, y, _ in self._points:
+        for x, y in pts:
             dx, dy = x - cx, y - cy
             if math.hypot(dx, dy) < 1e-6:
                 continue  # sitting on the centroid, angle is meaningless
